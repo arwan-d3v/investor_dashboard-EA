@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Login Admin - KiroiX License</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <style>
+    body { background-color: #F8FAFC; font-family: 'Inter', system-ui, sans-serif; }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-md p-6 w-full max-w-md">
+    <div class="text-center mb-6">
+      <h1 class="text-2xl font-bold text-blue-600">Kryon License</h1>
+      <p class="text-gray-500">Admin Login</p>
+    </div>
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block text-gray-700 font-medium mb-1">Email</label>
+        <input type="email" id="email" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500">
+      </div>
+      <div>
+        <label class="block text-gray-700 font-medium mb-1">Password</label>
+        <input type="password" id="password" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500">
+      </div>
+      <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition">Login</button>
+    </form>
+    <div id="errorMsg" class="mt-4 text-red-600 text-sm text-center hidden"></div>
+    <div class="mt-6 text-center">
+      <a href="/" class="text-blue-600 text-sm">← Kembali ke Beranda</a>
+    </div>
+  </div>
+  <script src="assets/js/firebase-config.js"></script>
+  <script>
+    const form = document.getElementById('loginForm');
+    const errorDiv = document.getElementById('errorMsg');
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        errorDiv.textContent = 'Email dan password harus diisi';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+      
+      try {
+        await firebase.auth().signInWithEmailAndPassword(email, password);
+        // Redirect ke halaman admin
+        window.location.href = '/admin/';
+      } catch (err) {
+        console.error(err);
+        errorDiv.textContent = 'Login gagal: ' + (err.message || 'Email atau password salah');
+        errorDiv.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
