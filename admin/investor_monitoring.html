@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Investor Monitoring - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <style>body{background:#F8FAFC}</style>
+</head>
+<body class="p-4">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex flex-wrap justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-blue-600">Investor Monitoring (Read-Only)</h1>
+      <a href="index.html" class="bg-gray-500 text-white px-4 py-2 rounded-lg">← Admin</a>
+    </div>
+    <div class="bg-white rounded-xl shadow-md p-4 mb-6">
+      <div class="flex flex-col sm:flex-row gap-2">
+        <input type="text" id="investorAccount" placeholder="Nomor Akun Investor" class="border rounded p-2 flex-1">
+        <button id="loadBtn" class="bg-blue-600 text-white px-6 py-2 rounded">Tampilkan</button>
+      </div>
+    </div>
+    <div id="dashboardContent" class="hidden">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Balance</div><div class="text-2xl font-bold" id="balance">-</div></div>
+        <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Equity</div><div class="text-2xl font-bold" id="equity">-</div></div>
+        <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Floating</div><div class="text-2xl font-bold" id="floating">-</div></div>
+        <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Daily Profit</div><div class="text-2xl font-bold" id="dailyProfit">-</div></div>
+        <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Monthly Profit</div><div class="text-2xl font-bold" id="monthlyProfit">-</div></div>
+        <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Total Lot (All Time)</div><div class="text-2xl font-bold" id="totalLot">-</div></div>
+      </div>
+      <div class="bg-white rounded-xl shadow p-4 mb-6">
+        <canvas id="equityChart" height="100"></canvas>
+      </div>
+      <div class="bg-white rounded-xl shadow p-4 overflow-x-auto">
+        <h3 class="font-bold text-lg mb-2">Riwayat Harian (30 hari terakhir)</h3>
+        <table class="min-w-[600px] w-full text-sm">
+          <thead class="bg-gray-100"><tr><th>Tanggal</th><th>Equity Akhir</th><th>Daily Profit</th><th>Daily Lot</th><th>Total Lot</th></tr></thead>
+          <tbody id="historyTable"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="loadingMsg" class="text-center text-gray-500">Masukkan nomor akun investor</div>
+  </div>
+  <script src="../assets/js/firebase-config.js"></script>
+  <script src="../assets/js/utils.js"></script>
+  <script>
+    let equityChart = null;
+    let currentAccount = '';
+
+    requireAdmin().then(() => {
+      document.getElementById('loadBtn').addEventListener('click', async () => {
+        const acc = document.getElementById('investorAccount').value.trim();
+        if(!acc) return alert('Masukkan nomor akun');
+        currentAccount = acc;
+        await loadInvestorData(acc);
+      });
+    });
+
+    async function loadInvestorData(account) {
+      const db = firebase.database();
+      const snapshotsRef = db.ref(`investor_data/${account}/snapshots`);
+      const metadataRef = db.ref(`investor_data/${account}/metadata`);
+      
+      // Ambil metadata
+      const metaSnap = await metadataRef.once('value');
+      if(metaSnap.exists()) {
+        const meta = metaSnap.val();
+        document.getElementById('balance').innerText = 'Loading...';
+      } else {
+        document.getElementById('dashboardContent').classList.add('hidden');
+        document.getElementById('loadingMsg').innerHTML = 'Akun investor tidak ditemukan. Pastikan EA monitor sudah berjalan.';
+        return;
+      }
+      
+      // Ambil snapshot terakhir
+      const lastSnap = await snapshotsRef.orderByKey().limitToLast(1).once('value');
+      let lastData = null;
+      lastSnap.forEach(snap => { lastData = snap.val(); });
+      if(lastData) {
+        document.getElementById('balance').innerText = formatCurrency(lastData.balance);
+        document.getElementById('equity').innerText = formatCurrency(lastData.equity);
+        document.getElementById('floating').innerText = formatCurrency(lastData.floating);
+        document.getElementById('dailyProfit').innerHTML = `<span class="${lastData.daily_profit>=0?'text-green-600':'text-red-600'}">${formatCurrency(lastData.daily_profit)}</span>`;
+        document.getElementById('monthlyProfit').innerHTML = `<span class="${lastData.monthly_profit>=0?'text-green-600':'text-red-600'}">${formatCurrency(lastData.monthly_profit)}</span>`;
+        document.getElementById('totalLot').innerText = lastData.total_lot.toFixed(2);
+      }
+      
+      // Ambil 30 snapshot untuk grafik
+      const thirtyDaysAgo = Date.now() - 30*24*3600*1000;
+      const historySnap = await snapshotsRef.orderByKey().startAt(thirtyDaysAgo.toString()).once('value');
+      const labels = [];
+      const equityData = [];
+      const dailyProfitData = [];
+      const dailyLotData = [];
+      const totalLotData = [];
+      const tableRows = [];
+      
+      const items = [];
+      historySnap.forEach(snap => {
+        const ts = parseInt(snap.key);
+        const val = snap.val();
+        items.push({ts, val});
+      });
+      items.sort((a,b) => a.ts - b.ts);
+      
+      items.forEach(item => {
+        const d = new Date(item.ts);
+        const dateStr = d.toLocaleDateString('id-ID');
+        labels.push(dateStr);
+        equityData.push(item.val.equity);
+        dailyProfitData.push(item.val.daily_profit);
+        dailyLotData.push(item.val.daily_lot);
+        totalLotData.push(item.val.total_lot);
+        tableRows.push(`<tr class="border-b"><td class="p-2">${dateStr}</td><td class="p-2">${formatCurrency(item.val.equity)}</td><td class="p-2 ${item.val.daily_profit>=0?'text-green-600':'text-red-600'}">${formatCurrency(item.val.daily_profit)}</td><td class="p-2">${item.val.daily_lot.toFixed(2)}</td><td class="p-2">${item.val.total_lot.toFixed(2)}</td></tr>`);
+      });
+      
+      document.getElementById('historyTable').innerHTML = tableRows.reverse().slice(0,30).join('');
+      
+      // Render chart
+      if(equityChart) equityChart.destroy();
+      const ctx = document.getElementById('equityChart').getContext('2d');
+      equityChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: labels, datasets: [{ label: 'Equity', data: equityData, borderColor: '#3B82F6', fill: false }] },
+        options: { responsive: true, maintainAspectRatio: true }
+      });
+      
+      document.getElementById('dashboardContent').classList.remove('hidden');
+      document.getElementById('loadingMsg').classList.add('hidden');
+    }
+    
+    function formatCurrency(value) {
+      if(value === undefined) return '-';
+      return '$' + value.toFixed(2);
+    }
+  </script>
+</body>
+</html>
