@@ -79,7 +79,7 @@ int OnInit()
    Print("Account: ", g_AccountNumber, " | Broker: ", g_BrokerServer);
    
    // Validasi format license key sederhana
-   if(StringLen(InpLicenseKey) != 19 || StringSubstr(InpLicenseKey,0,4) != "KRX-") {
+   if(StringLen(InpLicenseKey) != 18 || StringSubstr(InpLicenseKey,0,4) != "KRX-") {
       Alert("Format License Key salah! Harus KRX-XXXX-XXXX-XXXX");
       return(INIT_FAILED);
    }
