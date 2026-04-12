@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>License History - Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -11,18 +11,15 @@
   <style>body{background:#F8FAFC}</style>
 </head>
 <body class="p-4">
-  <div class="max-w-7xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
+  <div class="max-w-full mx-auto">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-6">
       <h1 class="text-2xl font-bold text-blue-600">License History</h1>
-      <a href="index.html" class="bg-gray-500 text-white px-4 py-2 rounded-lg">← Back to Admin</a>
+      <a href="index.html" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition text-sm">← Back to Admin</a>
     </div>
     <div class="bg-white rounded-xl shadow-md p-4 overflow-x-auto">
-      <table class="min-w-full table-auto text-sm">
+      <table class="min-w-[800px] w-full text-sm">
         <thead class="bg-gray-100">
-          <tr>
-            <th class="p-2">Akun</th><th class="p-2">License Key</th><th class="p-2">Nama</th><th class="p-2">Email</th>
-            <th class="p-2">Telegram</th><th class="p-2">Membership</th><th class="p-2">Harga</th><th class="p-2">Expiry</th><th class="p-2">Status</th>
-          </tr>
+          <tr><th class="p-2 text-left">Akun</th><th class="p-2 text-left">License Key</th><th class="p-2 text-left">Nama</th><th class="p-2 text-left">Email</th><th class="p-2 text-left">Telegram</th><th class="p-2 text-left">Membership</th><th class="p-2 text-left">Harga</th><th class="p-2 text-left">Expiry</th><th class="p-2 text-left">Status</th></tr>
         </thead>
         <tbody id="historyTable"></tbody>
       </table>
@@ -39,13 +36,12 @@
         const tbody = document.getElementById('historyTable');
         tbody.innerHTML = '';
         if (!data) return;
-        // Convert object to array and sort by generated_at descending
         const items = Object.entries(data).map(([id, val]) => ({ id, ...val }));
         items.sort((a,b) => b.generated_at - a.generated_at);
         items.forEach(item => {
           const row = tbody.insertRow();
           row.insertCell(0).innerText = item.account_number;
-          row.insertCell(1).innerHTML = `<code class="bg-gray-100 px-1">${item.license_key}</code>`;
+          row.insertCell(1).innerHTML = `<code class="bg-gray-100 px-1 rounded text-xs">${item.license_key}</code>`;
           row.insertCell(2).innerText = item.investor_name || '-';
           row.insertCell(3).innerText = item.investor_email || '-';
           row.insertCell(4).innerText = item.investor_telegram || '-';
