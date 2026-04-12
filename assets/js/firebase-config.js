@@ -10,22 +10,23 @@ const firebaseConfig = {
   measurementId: "G-GK269RNX4Y"
 };
 
-// Inisialisasi Firebase (menggunakan compat SDK)
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
-// Admin auth sederhana (email check)
 function isAdmin() {
   const user = firebase.auth().currentUser;
   return user && user.email === "kiroix@gmail.com";
 }
 
-// Redirect jika bukan admin
 async function requireAdmin() {
-  await firebase.auth().onAuthStateChanged(user => {
-    if (!user || user.email !== "kiroix@gmail.com") {
-      alert("Akses ditolak. Hanya admin yang diizinkan.");
-      window.location.href = "/";
-    }
+  return new Promise((resolve) => {
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user || user.email !== "kiroix@gmail.com") {
+        // Redirect ke halaman login jika belum login atau bukan admin
+        window.location.href = "/login.html";
+      } else {
+        resolve();
+      }
+    });
   });
 }
