@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Investor Dashboard - Kryon</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <style>body{background:#F8FAFC}</style>
+</head>
+<body class="p-4">
+  <div class="max-w-3xl mx-auto">
+    <div id="warningBanner" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 mb-4 hidden rounded">
+      ⚠️ Lisensi Anda akan segera habis dalam 3 hari. Segera perpanjang.
+    </div>
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h1 class="text-2xl font-bold text-blue-600 mb-4">Informasi Lisensi</h1>
+      <div class="space-y-3">
+        <p><strong>Nomor Akun:</strong> <span id="accountNumber"></span></p>
+        <p><strong>License Key:</strong> <code id="licenseKey" class="bg-gray-100 px-2 py-1 rounded"></code></p>
+        <p><strong>Membership:</strong> <span id="membership"></span></p>
+        <p><strong>Status:</strong> <span id="status"></span></p>
+        <p><strong>Expiry Date:</strong> <span id="expiry"></span></p>
+        <p><strong>Sisa Hari:</strong> <span id="remaining"></span></p>
+        <p><strong>Heartbeat Terakhir:</strong> <span id="heartbeat"></span></p>
+        <p><strong>VPS Rental:</strong> <span id="vpsInfo"></span></p>
+      </div>
+    </div>
+  </div>
+  <script src="../assets/js/firebase-config.js"></script>
+  <script src="../assets/js/utils.js"></script>
+  <script src="../assets/js/dashboard.js"></script>
+  <script>loadInvestorDashboard();</script>
+</body>
+</html>

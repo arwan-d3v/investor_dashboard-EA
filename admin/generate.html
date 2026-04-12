@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate License</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <style>body{background:#F8FAFC}</style>
+</head>
+<body class="p-4">
+  <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-6">
+    <h1 class="text-2xl font-bold mb-4">Generate License Key</h1>
+    <form id="generateForm" class="space-y-4">
+      <div><label class="block font-medium">Nomor Akun</label><input type="text" id="accountNumber" required class="w-full border rounded p-2"></div>
+      <div><label class="block font-medium">Broker Server</label><input type="text" id="brokerServer" required class="w-full border rounded p-2"></div>
+      <!-- TAMBAHAN FIELD INVESTOR -->
+      <div><label class="block font-medium">Nama Investor</label><input type="text" id="investorName" required class="w-full border rounded p-2"></div>
+      <div><label class="block font-medium">Email Investor</label><input type="email" id="investorEmail" required class="w-full border rounded p-2"></div>
+      <div><label class="block font-medium">Username Telegram</label><input type="text" id="investorTelegram" placeholder="@username" class="w-full border rounded p-2"></div>
+      <!-- END TAMBAHAN -->
+      <div><label class="block font-medium">Membership</label><select id="membershipType" class="w-full border rounded p-2"><option value="TRIAL">Trial (3 hari)</option><option value="MONTHLY">Monthly ($105)</option><option value="3MONTHS">3 Months ($277)</option></select></div>
+      <div><label class="inline-flex items-center"><input type="checkbox" id="isIB"> <span class="ml-2">Introducing Broker (diskon 30%)</span></label></div>
+      <div><label class="inline-flex items-center"><input type="checkbox" id="vpsRental"> <span class="ml-2">VPS Rental (+$27, cicil $7 + $20)</span></label></div>
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg w-full">Generate & Simpan</button>
+    </form>
+    <div id="result" class="mt-4 p-3 bg-gray-100 rounded hidden"></div>
+    <a href="index.html" class="block text-center mt-4 text-blue-600">← Kembali</a>
+  </div>
+  <script src="../assets/js/firebase-config.js"></script>
+  <script src="../assets/js/utils.js"></script>
+  <script src="../assets/js/generate-license.js"></script>
+  <script>
+    requireAdmin();
+    const form = document.getElementById('generateForm');
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const accountNumber = document.getElementById('accountNumber').value.trim();
+      const brokerServer = document.getElementById('brokerServer').value.trim();
+      const membershipType = document.getElementById('membershipType').value;
+      const isIB = document.getElementById('isIB').checked;
+      const vpsRental = document.getElementById('vpsRental').checked;
+      // Ambil data investor
+      const investorName = document.getElementById('investorName').value.trim();
+      const investorEmail = document.getElementById('investorEmail').value.trim();
+      const investorTelegram = document.getElementById('investorTelegram').value.trim();
+
+      if(!accountNumber || !brokerServer || !investorName || !investorEmail) {
+        alert('Isi semua field wajib (Nomor Akun, Broker Server, Nama, Email)');
+        return;
+      }
+      
+      // Cek trial sudah dipakai
+      if(membershipType === 'TRIAL') {
+        const trialSnap = await firebase.database().ref(`trial_used_accounts/${accountNumber}`).once('value');
+        if(trialSnap.exists()) return alert('Akun ini sudah pernah menggunakan trial');
+      }
+      
+      // Hitung harga
+      let price = membershipType === 'MONTHLY' ? 105 : (membershipType === '3MONTHS' ? 277 : 0);
+      if(isIB) price *= 0.7;
+      if(vpsRental) price += 27;
+      
+      // Generate license
+      const { licenseKey, timestamp } = await generateLicense(accountNumber, brokerServer, membershipType, isIB, vpsRental);
+      const expiryDays = membershipType === 'TRIAL' ? 3 : (membershipType === 'MONTHLY' ? 30 : 90);
+      const expiryDate = timestamp + (expiryDays * 24 * 60 * 60 * 1000);
+      const licenseData = {
+        license_key: licenseKey,
+        membership_type: membershipType,
+        is_ib: isIB,
+        price_paid: price,
+        broker_server: brokerServer,
+        generated_at: timestamp,
+        expiry_date: expiryDate,
+        status: 'ACTIVE',
+        vps_rental: vpsRental,
+        vps_deposit_paid: false,
+        vps_remaining: vpsRental ? 20 : 0,
+        last_heartbeat: null
+      };
+      
+      // Simpan ke /licenses/{account}
+      await saveLicense(accountNumber, licenseData);
+      
+      // Simpan ke history dengan data investor
+      const investorData = {
+        name: investorName,
+        email: investorEmail,
+        telegram: investorTelegram
+      };
+      await saveLicenseHistory(accountNumber, licenseData, investorData);
+      
+      // Tampilkan hasil
+      document.getElementById('result').innerHTML = `<strong>License Key:</strong> ${licenseKey}<br><strong>Expiry:</strong> ${new Date(expiryDate).toLocaleString()}<br><strong>Price Paid:</strong> $${price.toFixed(2)}<br><strong>Investor:</strong> ${investorName} (${investorEmail})`;
+      document.getElementById('result').classList.remove('hidden');
+    };
+  </script>
+</body>
+</html>

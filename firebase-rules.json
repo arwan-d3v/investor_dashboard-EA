@@ -1,0 +1,48 @@
+{
+  "rules": {
+    "licenses": {
+      "$account": {
+        ".read": "auth != null || true",
+        ".write": "auth != null",
+        "license_key": { ".validate": "newData.isString() && newData.val().matches(/^KRX-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/)" },
+        "membership_type": { ".validate": "newData.isString() && (newData.val() === 'TRIAL' || newData.val() === 'MONTHLY' || newData.val() === '3MONTHS')" },
+        "is_ib": { ".validate": "newData.isBoolean()" },
+        "price_paid": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "broker_server": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "generated_at": { ".validate": "newData.isNumber()" },
+        "expiry_date": { ".validate": "newData.isNumber()" },
+        "status": { ".validate": "newData.isString() && (newData.val() === 'ACTIVE' || newData.val() === 'EXPIRED' || newData.val() === 'SUSPENDED')" },
+        "vps_rental": { ".validate": "newData.isBoolean()" },
+        "vps_deposit_paid": { ".validate": "newData.isBoolean()" },
+        "vps_remaining": { ".validate": "newData.isNumber()" },
+        "last_heartbeat": { ".validate": "newData.isNumber()" },
+        "daily_summary": {
+          "$date": {
+            ".read": "auth != null || true",
+            ".write": "auth != null || true",
+            "lot_total": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "profit_loss": { ".validate": "newData.isNumber()" },
+            "start_time": { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{2}:[0-9]{2}$/)" },
+            "last_update": { ".validate": "newData.isString()" }
+          }
+        }
+      }
+    },
+    "trial_used_accounts": {
+      "$account": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.isBoolean() && newData.val() === true"
+      }
+    },
+    "alerts": {
+      "$account": {
+        ".read": "auth != null || true",
+        ".write": "auth != null || true",
+        "message": { ".validate": "newData.isString()" },
+        "timestamp": { ".validate": "newData.isNumber()" },
+        "type": { ".validate": "newData.isString()" }
+      }
+    }
+  }
+}

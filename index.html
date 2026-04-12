@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Kryon License Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <style>
+    body { background-color: #F8FAFC; font-family: 'Inter', system-ui, sans-serif; }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-md p-6 w-full max-w-md">
+    <div class="text-center mb-6">
+      <h1 class="text-2xl font-bold text-blue-600">KiroiX License</h1>
+      <p class="text-gray-500">Dashboard Admin & Investor</p>
+    </div>
+    <div class="space-y-4">
+      <button id="adminLoginBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition">Login sebagai Admin</button>
+      <div class="border-t pt-4">
+        <input type="text" id="investorAccount" placeholder="Masukkan Nomor Akun" class="w-full border border-gray-300 rounded-lg p-2 mb-2">
+        <button id="investorBtn" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 rounded-lg transition">Lihat Dashboard Investor</button>
+      </div>
+    </div>
+  </div>
+  <script src="assets/js/firebase-config.js"></script>
+  <script>
+    document.getElementById('adminLoginBtn').onclick = async () => {
+      try {
+        await firebase.auth().signInWithEmailAndPassword ('kiroix@gmail.com', 'anakPSG4.');
+        window.location.href = '/admin/';
+      } catch(e) {
+        alert('Login gagal: pastikan akun kiroix@gmail.com sudah dibuat di Firebase Auth');
+      }
+    };
+    document.getElementById('investorBtn').onclick = () => {
+      const acc = document.getElementById('investorAccount').value.trim();
+      if(acc) window.location.href = `/investor/dashboard.html?account=${acc}`;
+      else alert('Masukkan nomor akun');
+    };
+  </script>
+</body>
+</html>

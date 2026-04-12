@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>License History - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <style>body{background:#F8FAFC}</style>
+</head>
+<body class="p-4">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-blue-600">License History</h1>
+      <a href="index.html" class="bg-gray-500 text-white px-4 py-2 rounded-lg">← Back to Admin</a>
+    </div>
+    <div class="bg-white rounded-xl shadow-md p-4 overflow-x-auto">
+      <table class="min-w-full table-auto text-sm">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="p-2">Akun</th><th class="p-2">License Key</th><th class="p-2">Nama</th><th class="p-2">Email</th>
+            <th class="p-2">Telegram</th><th class="p-2">Membership</th><th class="p-2">Harga</th><th class="p-2">Expiry</th><th class="p-2">Status</th>
+          </tr>
+        </thead>
+        <tbody id="historyTable"></tbody>
+      </table>
+    </div>
+  </div>
+  <script src="../assets/js/firebase-config.js"></script>
+  <script src="../assets/js/utils.js"></script>
+  <script>
+    requireAdmin().then(() => {
+      const db = firebase.database();
+      const historyRef = db.ref('license_history_list');
+      historyRef.on('value', (snap) => {
+        const data = snap.val();
+        const tbody = document.getElementById('historyTable');
+        tbody.innerHTML = '';
+        if (!data) return;
+        // Convert object to array and sort by generated_at descending
+        const items = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+        items.sort((a,b) => b.generated_at - a.generated_at);
+        items.forEach(item => {
+          const row = tbody.insertRow();
+          row.insertCell(0).innerText = item.account_number;
+          row.insertCell(1).innerHTML = `<code class="bg-gray-100 px-1">${item.license_key}</code>`;
+          row.insertCell(2).innerText = item.investor_name || '-';
+          row.insertCell(3).innerText = item.investor_email || '-';
+          row.insertCell(4).innerText = item.investor_telegram || '-';
+          row.insertCell(5).innerText = item.membership_type;
+          row.insertCell(6).innerText = `$${item.price_paid}`;
+          row.insertCell(7).innerText = formatTimestamp(item.expiry_date);
+          row.insertCell(8).innerHTML = `<span class="px-2 py-1 rounded-full text-xs ${item.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${item.status}</span>`;
+        });
+      });
+    });
+  </script>
+</body>
+</html>
