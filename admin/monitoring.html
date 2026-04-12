@@ -2,8 +2,8 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Monitoring Akun</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Monitoring Akun - Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
@@ -11,21 +11,28 @@
   <style>body{background:#F8FAFC}</style>
 </head>
 <body class="p-4">
-  <div class="max-w-5xl mx-auto">
-    <h1 class="text-2xl font-bold mb-4">Monitoring Lisensi & Heartbeat</h1>
-    <div class="flex gap-2 mb-4">
-      <input type="text" id="accountSearch" placeholder="Nomor Akun" class="border rounded p-2 flex-1">
-      <button id="searchBtn" class="bg-blue-600 text-white px-4 rounded">Cari</button>
+  <div class="max-w-6xl mx-auto">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-6">
+      <h1 class="text-2xl font-bold text-blue-600">Monitoring Lisensi & Heartbeat</h1>
+      <a href="index.html" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition text-sm">← Kembali</a>
     </div>
+    
+    <div class="bg-white rounded-xl shadow-md p-4 mb-6">
+      <div class="flex flex-col sm:flex-row gap-2">
+        <input type="text" id="accountSearch" placeholder="Nomor Akun" class="border rounded p-2 flex-1">
+        <button id="searchBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded transition">Cari</button>
+      </div>
+    </div>
+    
     <div id="accountDetails" class="bg-white rounded-xl shadow p-4"></div>
-    <a href="index.html" class="block mt-4 text-blue-600">← Kembali</a>
   </div>
   <script src="../assets/js/firebase-config.js"></script>
   <script src="../assets/js/utils.js"></script>
   <script src="../assets/js/monitoring.js"></script>
   <script>
-    requireAdmin();
-    loadMonitoring();
+    requireAdmin().then(() => {
+      loadMonitoring();
+    });
   </script>
 </body>
 </html>
