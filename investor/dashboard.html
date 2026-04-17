@@ -7,8 +7,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-  <style>body{background:#F8FAFC}</style>
+  <style>
+    body { background-color: #F8FAFC; font-family: 'Inter', system-ui, sans-serif; }
+  </style>
 </head>
 <body class="p-4">
   <div class="max-w-3xl mx-auto">
@@ -18,12 +19,29 @@
     <div class="bg-white rounded-xl shadow-md p-6">
       <h1 class="text-2xl font-bold text-blue-600 mb-4">Informasi Lisensi</h1>
       <div id="content" class="space-y-3">
-        <p>Memuat data...</p>
+        <p class="text-gray-500">Memuat data...</p>
+      </div>
+      <div class="mt-6 text-center">
+        <a href="/" class="text-blue-600 text-sm">← Kembali ke Beranda</a>
       </div>
     </div>
   </div>
 
   <script>
+    // Inisialisasi Firebase (tanpa auth, hanya baca)
+    const firebaseConfig = {
+      apiKey: "AIzaSyAs_1Y_8d5mKhhnmeeNPlsFn4eDsd18E7k",
+      authDomain: "kiroi-x-ecosystem.firebaseapp.com",
+      databaseURL: "https://kiroi-x-ecosystem-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "kiroi-x-ecosystem",
+      storageBucket: "kiroi-x-ecosystem.firebasestorage.app",
+      messagingSenderId: "969313803710",
+      appId: "1:969313803710:web:5e8b74e3f01e682967adef",
+      measurementId: "G-GK269RNX4Y"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
     // Ambil parameter account dari URL
     const urlParams = new URLSearchParams(window.location.search);
     const accountNumber = urlParams.get('account');
@@ -31,9 +49,7 @@
     if (!accountNumber) {
       document.getElementById('content').innerHTML = '<p class="text-red-500">Parameter akun tidak ditemukan. Silakan kembali ke halaman utama.</p>';
     } else {
-      const db = firebase.database();
-      const licenseRef = db.ref(`licenses/${accountNumber}`);
-      
+      const licenseRef = database.ref(`licenses/${accountNumber}`);
       licenseRef.on('value', (snap) => {
         const license = snap.val();
         if (!license) {
@@ -41,7 +57,7 @@
           return;
         }
 
-        const active = (license.status === 'ACTIVE' && Date.now() < license.expiry_date);
+        const isActive = (license.status === 'ACTIVE' && Date.now() < license.expiry_date);
         const remainingDays = Math.max(0, Math.floor((license.expiry_date - Date.now()) / (1000 * 60 * 60 * 24)));
         
         const formatDate = (ts) => ts ? new Date(ts).toLocaleString('id-ID') : '-';
@@ -51,7 +67,7 @@
           <p><strong>Nomor Akun:</strong> ${accountNumber}</p>
           <p><strong>License Key:</strong> <code class="bg-gray-100 px-2 py-1 rounded">${license.license_key || '-'}</code></p>
           <p><strong>Membership:</strong> ${license.membership_type || '-'}</p>
-          <p><strong>Status:</strong> <span class="px-2 py-1 rounded-full text-xs ${active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${license.status || '-'}</span></p>
+          <p><strong>Status:</strong> <span class="px-2 py-1 rounded-full text-xs ${isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${license.status || '-'}</span></p>
           <p><strong>Expiry Date:</strong> ${formatDate(license.expiry_date)}</p>
           <p><strong>Sisa Hari:</strong> ${remainingDays} hari</p>
           <p><strong>Heartbeat Terakhir:</strong> ${formatDate(license.last_heartbeat)}</p>
@@ -60,7 +76,7 @@
         document.getElementById('content').innerHTML = html;
 
         // Tampilkan warning jika sisa 3 hari atau kurang dan masih aktif
-        if (active && remainingDays <= 3) {
+        if (isActive && remainingDays <= 3) {
           document.getElementById('warningBanner').classList.remove('hidden');
         } else {
           document.getElementById('warningBanner').classList.add('hidden');
