@@ -2,11 +2,12 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Investor Dashboard - Kryon</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Investor Dashboard - KiroiX</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <style>body{background:#F8FAFC}</style>
 </head>
 <body class="p-4">
@@ -16,21 +17,59 @@
     </div>
     <div class="bg-white rounded-xl shadow-md p-6">
       <h1 class="text-2xl font-bold text-blue-600 mb-4">Informasi Lisensi</h1>
-      <div class="space-y-3">
-        <p><strong>Nomor Akun:</strong> <span id="accountNumber"></span></p>
-        <p><strong>License Key:</strong> <code id="licenseKey" class="bg-gray-100 px-2 py-1 rounded"></code></p>
-        <p><strong>Membership:</strong> <span id="membership"></span></p>
-        <p><strong>Status:</strong> <span id="status"></span></p>
-        <p><strong>Expiry Date:</strong> <span id="expiry"></span></p>
-        <p><strong>Sisa Hari:</strong> <span id="remaining"></span></p>
-        <p><strong>Heartbeat Terakhir:</strong> <span id="heartbeat"></span></p>
-        <p><strong>VPS Rental:</strong> <span id="vpsInfo"></span></p>
+      <div id="content" class="space-y-3">
+        <p>Memuat data...</p>
       </div>
     </div>
   </div>
-  <script src="../assets/js/firebase-config.js"></script>
-  <script src="../assets/js/utils.js"></script>
-  <script src="../assets/js/dashboard.js"></script>
-  <script>loadInvestorDashboard();</script>
+
+  <script>
+    // Ambil parameter account dari URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const accountNumber = urlParams.get('account');
+
+    if (!accountNumber) {
+      document.getElementById('content').innerHTML = '<p class="text-red-500">Parameter akun tidak ditemukan. Silakan kembali ke halaman utama.</p>';
+    } else {
+      const db = firebase.database();
+      const licenseRef = db.ref(`licenses/${accountNumber}`);
+      
+      licenseRef.on('value', (snap) => {
+        const license = snap.val();
+        if (!license) {
+          document.getElementById('content').innerHTML = '<p class="text-red-500">Lisensi tidak ditemukan untuk akun ini.</p>';
+          return;
+        }
+
+        const active = (license.status === 'ACTIVE' && Date.now() < license.expiry_date);
+        const remainingDays = Math.max(0, Math.floor((license.expiry_date - Date.now()) / (1000 * 60 * 60 * 24)));
+        
+        const formatDate = (ts) => ts ? new Date(ts).toLocaleString('id-ID') : '-';
+        const formatCurrency = (val) => val ? `$${val.toFixed(2)}` : '-';
+
+        let html = `
+          <p><strong>Nomor Akun:</strong> ${accountNumber}</p>
+          <p><strong>License Key:</strong> <code class="bg-gray-100 px-2 py-1 rounded">${license.license_key || '-'}</code></p>
+          <p><strong>Membership:</strong> ${license.membership_type || '-'}</p>
+          <p><strong>Status:</strong> <span class="px-2 py-1 rounded-full text-xs ${active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${license.status || '-'}</span></p>
+          <p><strong>Expiry Date:</strong> ${formatDate(license.expiry_date)}</p>
+          <p><strong>Sisa Hari:</strong> ${remainingDays} hari</p>
+          <p><strong>Heartbeat Terakhir:</strong> ${formatDate(license.last_heartbeat)}</p>
+          <p><strong>VPS Rental:</strong> ${license.vps_rental ? `Aktif (sisa $${license.vps_remaining})` : 'Tidak'}</p>
+        `;
+        document.getElementById('content').innerHTML = html;
+
+        // Tampilkan warning jika sisa 3 hari atau kurang dan masih aktif
+        if (active && remainingDays <= 3) {
+          document.getElementById('warningBanner').classList.remove('hidden');
+        } else {
+          document.getElementById('warningBanner').classList.add('hidden');
+        }
+      }, (error) => {
+        console.error(error);
+        document.getElementById('content').innerHTML = '<p class="text-red-500">Gagal memuat data. Periksa koneksi atau coba lagi nanti.</p>';
+      });
+    }
+  </script>
 </body>
 </html>
