@@ -11,18 +11,32 @@
 </head>
 <body class="bg-gray-50 p-4">
 <div class="max-w-6xl mx-auto">
-  <div class="flex justify-between items-center mb-6">
+  <div class="flex flex-wrap justify-between items-center mb-6">
     <h1 class="text-2xl font-bold text-blue-600">EA Control Panel</h1>
     <a href="index.html" class="bg-gray-500 text-white px-4 py-2 rounded-lg">← Admin</a>
   </div>
+
+  <!-- Pencarian / Pemilihan Akun -->
   <div class="bg-white rounded-xl shadow-md p-6 mb-6">
-    <div class="mb-4">
-      <label class="block font-medium">Nomor Akun</label>
-      <input type="text" id="accountNumber" class="border rounded p-2 w-full" placeholder="contoh = 183969086">
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <label class="block font-medium mb-1">Pilih Akun Aktif</label>
+        <select id="accountSelect" class="border rounded p-2 w-full">
+          <option value="">-- Muat daftar akun --</option>
+        </select>
+      </div>
+      <div>
+        <label class="block font-medium mb-1">Atau masukkan nomor akun manual</label>
+        <input type="text" id="accountNumber" class="border rounded p-2 w-full" placeholder="183969086">
+      </div>
     </div>
-    <button id="loadBtn" class="bg-blue-600 text-white px-4 py-2 rounded">Load Kontrol</button>
+    <div class="flex gap-3 mt-4">
+      <button id="loadBtn" class="bg-blue-600 text-white px-4 py-2 rounded">Load Kontrol</button>
+      <button id="batchApplyBtn" class="bg-purple-600 text-white px-4 py-2 rounded">Apply ke Semua Akun Aktif</button>
+    </div>
   </div>
 
+  <!-- Panel Kontrol (akan tampil setelah load) -->
   <div id="controlPanel" class="bg-white rounded-xl shadow-md p-6 hidden">
     <h2 class="text-xl font-semibold mb-4">Pengaturan EA untuk Akun <span id="displayAccount"></span></h2>
     
@@ -44,7 +58,7 @@
         </div>
         <div class="border-t pt-4 mb-4">
           <div class="font-medium mb-2">Force Control (Override Semua Filter)</div>
-          <div class="flex gap-3">
+          <div class="flex flex-wrap gap-3">
             <button id="forceStartBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Force Start EA</button>
             <button id="forceStopBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">Force Stop EA</button>
             <button id="resetForceBtn" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded">Reset Force</button>
@@ -65,6 +79,12 @@
       <div id="statusMsg" class="text-sm text-center mt-2"></div>
     </div>
   </div>
+
+  <!-- Progress batch -->
+  <div id="batchProgress" class="bg-white rounded-xl shadow-md p-4 mt-6 hidden">
+    <h3 class="font-bold">Batch Update Progress</h3>
+    <div id="batchLog" class="text-sm font-mono bg-gray-100 p-2 rounded h-40 overflow-y-auto"></div>
+  </div>
 </div>
 
 <script src="../assets/js/firebase-config.js"></script>
@@ -72,27 +92,67 @@
 requireAdmin().then(() => {
   const db = firebase.database();
   let currentAccount = '';
+  let allActiveAccounts = [];
+
+  // DOM elements
+  const accountSelect = document.getElementById('accountSelect');
+  const accountInput = document.getElementById('accountNumber');
+  const loadBtn = document.getElementById('loadBtn');
+  const batchApplyBtn = document.getElementById('batchApplyBtn');
+  const controlPanel = document.getElementById('controlPanel');
+  const displayAccount = document.getElementById('displayAccount');
+  const enabledCheck = document.getElementById('enabled');
+  const modeSelect = document.getElementById('mode');
+  const hybridPanel = document.getElementById('hybridPanel');
+  const saveBtn = document.getElementById('saveBtn');
+  const statusMsg = document.getElementById('statusMsg');
+  const forceStartBtn = document.getElementById('forceStartBtn');
+  const forceStopBtn = document.getElementById('forceStopBtn');
+  const resetForceBtn = document.getElementById('resetForceBtn');
+  const batchProgress = document.getElementById('batchProgress');
+  const batchLog = document.getElementById('batchLog');
 
   const days = ['monday','tuesday','wednesday','thursday','friday'];
   const dayNames = ['Senin','Selasa','Rabu','Kamis','Jumat'];
 
-  async function loadControls() {
-    const acc = document.getElementById('accountNumber').value.trim();
-    if(!acc) { alert('Masukkan nomor akun'); return; }
-    currentAccount = acc;
-    document.getElementById('displayAccount').innerText = currentAccount;
+  // --- Load daftar akun aktif dari /licenses yang status = ACTIVE ---
+  async function loadActiveAccounts() {
+    const snapshot = await db.ref('licenses').once('value');
+    const accounts = [];
+    snapshot.forEach(child => {
+      const license = child.val();
+      if (license.status === 'ACTIVE') {
+        accounts.push(child.key);
+      }
+    });
+    allActiveAccounts = accounts;
+    accountSelect.innerHTML = '<option value="">-- Pilih akun --</option>';
+    accounts.forEach(acc => {
+      const option = document.createElement('option');
+      option.value = acc;
+      option.textContent = acc;
+      accountSelect.appendChild(option);
+    });
+    if (accounts.length === 0) {
+      accountSelect.innerHTML = '<option value="">Tidak ada akun aktif</option>';
+    }
+  }
+
+  // --- Load kontrol untuk akun tertentu ---
+  async function loadControlsForAccount(account) {
+    if (!account) return;
+    currentAccount = account;
+    displayAccount.innerText = currentAccount;
     const ref = db.ref(`ea_controls/${currentAccount}`);
     const snap = await ref.once('value');
     const data = snap.val() || {};
     
-    document.getElementById('enabled').checked = data.enabled === true;
-    document.getElementById('mode').value = data.mode || 'auto';
+    enabledCheck.checked = data.enabled === true;
+    modeSelect.value = data.mode || 'auto';
     
-    // Force state (tampilkan indikator, tidak perlu input checkbox, cukup tombol)
-    // Kita simpan di hidden atau variable
-    window.forceStartState = data.force_start === true;
-    window.forceStopState = data.force_stop === true;
-    updateForceButtonsUI();
+    // Force state (tidak di tampilkan di checkbox, tapi disimpan untuk batch)
+    window.currentForceStart = data.force_start === true;
+    window.currentForceStop = data.force_stop === true;
     
     // Schedule hybrid
     const schedule = data.schedule || {};
@@ -121,88 +181,141 @@ requireAdmin().then(() => {
       container.appendChild(div);
     }
     toggleHybridPanel();
-    document.getElementById('controlPanel').classList.remove('hidden');
+    controlPanel.classList.remove('hidden');
   }
 
   function toggleHybridPanel() {
-    const mode = document.getElementById('mode').value;
-    document.getElementById('hybridPanel').style.display = mode === 'hybrid' ? 'block' : 'none';
+    hybridPanel.style.display = modeSelect.value === 'hybrid' ? 'block' : 'none';
   }
 
-  function updateForceButtonsUI() {
-    // optional: ubah warna tombol atau tampilkan teks
-    console.log('Force Start:', window.forceStartState, 'Force Stop:', window.forceStopState);
-  }
-
-  async function setForce(value, type) {
-    if(!currentAccount) return;
-    const ref = db.ref(`ea_controls/${currentAccount}`);
-    await ref.update({ [type]: value, last_updated: Date.now() });
-    if(type === 'force_start') window.forceStartState = value;
-    if(type === 'force_stop') window.forceStopState = value;
-    updateForceButtonsUI();
-    showMessage(`Force ${type} = ${value}`, false);
-  }
-
-  async function saveControls() {
-    if(!currentAccount) { alert('Load akun terlebih dahulu'); return; }
-    const enabled = document.getElementById('enabled').checked;
-    const mode = document.getElementById('mode').value;
-    
-    // Kumpulkan jadwal per hari
+  // --- Ambil pengaturan dari form saat ini (untuk batch) ---
+  function getCurrentSettings() {
+    const enabled = enabledCheck.checked;
+    const mode = modeSelect.value;
     const schedule = {};
     for(let i=0; i<days.length; i++) {
       const day = days[i];
-      const enabledCheck = document.querySelector(`.day-enabled[data-day="${day}"]`).checked;
-      const startHour = parseInt(document.querySelector(`.start-hour[data-day="${day}"]`).value);
-      const startMin = parseInt(document.querySelector(`.start-minute[data-day="${day}"]`).value);
-      const stopHour = parseInt(document.querySelector(`.stop-hour[data-day="${day}"]`).value);
-      const stopMin = parseInt(document.querySelector(`.stop-minute[data-day="${day}"]`).value);
-      schedule[day] = {
-        enabled: enabledCheck,
-        start_hour: startHour,
-        start_minute: startMin,
-        stop_hour: stopHour,
-        stop_minute: stopMin
-      };
+      const enabledCheckbox = document.querySelector(`.day-enabled[data-day="${day}"]`);
+      const startHourInput = document.querySelector(`.start-hour[data-day="${day}"]`);
+      const startMinuteInput = document.querySelector(`.start-minute[data-day="${day}"]`);
+      const stopHourInput = document.querySelector(`.stop-hour[data-day="${day}"]`);
+      const stopMinuteInput = document.querySelector(`.stop-minute[data-day="${day}"]`);
+      if (enabledCheckbox && startHourInput) {
+        schedule[day] = {
+          enabled: enabledCheckbox.checked,
+          start_hour: parseInt(startHourInput.value),
+          start_minute: parseInt(startMinuteInput.value),
+          stop_hour: parseInt(stopHourInput.value),
+          stop_minute: parseInt(stopMinuteInput.value)
+        };
+      }
     }
-    
-    const payload = {
+    return {
       enabled: enabled,
       mode: mode,
       schedule: schedule,
+      force_start: window.currentForceStart || false,
+      force_stop: window.currentForceStop || false,
       last_updated: Date.now()
     };
-    // Jangan overwrite force_start/force_stop jika tidak diubah, kita update hanya field yang ada
+  }
+
+  // --- Simpan ke satu akun ---
+  async function saveToAccount(account, settings, showMessageToast = false) {
     try {
-      await db.ref(`ea_controls/${currentAccount}`).update(payload);
-      showMessage('Pengaturan berhasil disimpan!', false);
-    } catch(err) {
-      console.error(err);
-      showMessage('Gagal menyimpan: ' + err.message, true);
+      await db.ref(`ea_controls/${account}`).update(settings);
+      if (showMessageToast) showMessage(`Berhasil disimpan untuk akun ${account}`, false);
+      return true;
+    } catch (err) {
+      if (showMessageToast) showMessage(`Gagal untuk ${account}: ${err.message}`, true);
+      return false;
     }
   }
 
-  function showMessage(msg, isError) {
-    const el = document.getElementById('statusMsg');
-    el.innerText = msg;
-    el.className = `text-sm text-center mt-2 ${isError ? 'text-red-600' : 'text-green-600'}`;
-    setTimeout(() => el.innerText = '', 3000);
+  // --- Batch apply ke semua akun aktif ---
+  async function batchApply() {
+    if (allActiveAccounts.length === 0) {
+      alert('Tidak ada akun aktif.');
+      return;
+    }
+    if (!currentAccount) {
+      alert('Harap load kontrol terlebih dahulu untuk satu akun sebagai referensi pengaturan.');
+      return;
+    }
+    const settings = getCurrentSettings();
+    batchProgress.classList.remove('hidden');
+    batchLog.innerHTML = '';
+    let successCount = 0;
+    for (const acc of allActiveAccounts) {
+      batchLog.innerHTML += `Memproses akun ${acc}...\n`;
+      const ok = await saveToAccount(acc, settings, false);
+      if (ok) {
+        batchLog.innerHTML += `✅ Berhasil untuk ${acc}\n`;
+        successCount++;
+      } else {
+        batchLog.innerHTML += `❌ Gagal untuk ${acc}\n`;
+      }
+      batchLog.scrollTop = batchLog.scrollHeight;
+    }
+    batchLog.innerHTML += `\nSelesai. ${successCount} dari ${allActiveAccounts.length} akun berhasil diupdate.\n`;
   }
 
-  document.getElementById('loadBtn').addEventListener('click', loadControls);
-  document.getElementById('mode').addEventListener('change', toggleHybridPanel);
-  document.getElementById('saveBtn').addEventListener('click', saveControls);
-  document.getElementById('forceStartBtn').addEventListener('click', () => setForce(true, 'force_start'));
-  document.getElementById('forceStopBtn').addEventListener('click', () => setForce(true, 'force_stop'));
-  document.getElementById('resetForceBtn').addEventListener('click', async () => {
-    if(!currentAccount) return;
-    await db.ref(`ea_controls/${currentAccount}`).update({ force_start: false, force_stop: false, last_updated: Date.now() });
-    window.forceStartState = false;
-    window.forceStopState = false;
-    updateForceButtonsUI();
-    showMessage('Force reset', false);
+  // --- Event listeners ---
+  loadBtn.addEventListener('click', async () => {
+    const manual = accountInput.value.trim();
+    const selected = accountSelect.value;
+    const account = manual || selected;
+    if (!account) {
+      alert('Pilih atau masukkan nomor akun.');
+      return;
+    }
+    await loadControlsForAccount(account);
   });
+
+  batchApplyBtn.addEventListener('click', async () => {
+    if (confirm(`Terapkan pengaturan saat ini ke ${allActiveAccounts.length} akun aktif?`)) {
+      await batchApply();
+    }
+  });
+
+  modeSelect.addEventListener('change', toggleHybridPanel);
+  
+  saveBtn.addEventListener('click', async () => {
+    if (!currentAccount) return;
+    const settings = getCurrentSettings();
+    await saveToAccount(currentAccount, settings, true);
+  });
+
+  forceStartBtn.addEventListener('click', async () => {
+    if (!currentAccount) return;
+    window.currentForceStart = true;
+    window.currentForceStop = false;
+    await db.ref(`ea_controls/${currentAccount}`).update({ force_start: true, force_stop: false, last_updated: Date.now() });
+    showMessage('Force Start diaktifkan', false);
+  });
+  forceStopBtn.addEventListener('click', async () => {
+    if (!currentAccount) return;
+    window.currentForceStart = false;
+    window.currentForceStop = true;
+    await db.ref(`ea_controls/${currentAccount}`).update({ force_start: false, force_stop: true, last_updated: Date.now() });
+    showMessage('Force Stop diaktifkan', false);
+  });
+  resetForceBtn.addEventListener('click', async () => {
+    if (!currentAccount) return;
+    window.currentForceStart = false;
+    window.currentForceStop = false;
+    await db.ref(`ea_controls/${currentAccount}`).update({ force_start: false, force_stop: false, last_updated: Date.now() });
+    showMessage('Force direset', false);
+  });
+
+  function showMessage(msg, isError) {
+    statusMsg.innerText = msg;
+    statusMsg.className = `text-sm text-center mt-2 ${isError ? 'text-red-600' : 'text-green-600'}`;
+    setTimeout(() => statusMsg.innerText = '', 3000);
+  }
+
+  // Inisialisasi: muat daftar akun aktif
+  loadActiveAccounts();
 });
 </script>
 </body>
