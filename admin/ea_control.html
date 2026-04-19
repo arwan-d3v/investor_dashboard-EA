@@ -20,7 +20,7 @@
   <div class="bg-white rounded-xl shadow-md p-6 mb-6">
     <div class="grid md:grid-cols-2 gap-4">
       <div>
-        <label class="block font-medium mb-1">Pilih Akun Aktif</label>
+        <label class="block font-medium mb-1">Pilih Akun Aktif (dari License History)</label>
         <select id="accountSelect" class="border rounded p-2 w-full">
           <option value="">-- Muat daftar akun --</option>
         </select>
@@ -41,7 +41,6 @@
     <h2 class="text-xl font-semibold mb-4">Pengaturan EA untuk Akun <span id="displayAccount"></span></h2>
     
     <div class="grid md:grid-cols-2 gap-6">
-      <!-- Kolom kiri -->
       <div>
         <div class="mb-4">
           <label class="inline-flex items-center">
@@ -67,7 +66,6 @@
         </div>
       </div>
 
-      <!-- Kolom kanan: Jadwal Hybrid -->
       <div id="hybridPanel" class="border-l pl-6 hidden">
         <h3 class="font-bold text-lg mb-3">Jadwal Trading (Mode Hybrid)</h3>
         <div id="dailySchedules" class="space-y-4"></div>
@@ -80,7 +78,6 @@
     </div>
   </div>
 
-  <!-- Progress batch -->
   <div id="batchProgress" class="bg-white rounded-xl shadow-md p-4 mt-6 hidden">
     <h3 class="font-bold">Batch Update Progress</h3>
     <div id="batchLog" class="text-sm font-mono bg-gray-100 p-2 rounded h-40 overflow-y-auto"></div>
@@ -89,12 +86,11 @@
 
 <script src="../assets/js/firebase-config.js"></script>
 <script>
-requireAdmin().then(() => {
+requireAdmin().then(async () => {
   const db = firebase.database();
   let currentAccount = '';
   let allActiveAccounts = [];
 
-  // DOM elements
   const accountSelect = document.getElementById('accountSelect');
   const accountInput = document.getElementById('accountNumber');
   const loadBtn = document.getElementById('loadBtn');
@@ -115,26 +111,47 @@ requireAdmin().then(() => {
   const days = ['monday','tuesday','wednesday','thursday','friday'];
   const dayNames = ['Senin','Selasa','Rabu','Kamis','Jumat'];
 
-  // --- Load daftar akun aktif dari /licenses yang status = ACTIVE ---
+  // --- Load daftar akun dari license_history_list (status ACTIVE) ---
   async function loadActiveAccounts() {
-    const snapshot = await db.ref('licenses').once('value');
-    const accounts = [];
-    snapshot.forEach(child => {
-      const license = child.val();
-      if (license.status === 'ACTIVE') {
-        accounts.push(child.key);
+    try {
+      const snapshot = await db.ref('license_history_list').once('value');
+      const accountsMap = new Map(); // gunakan Map untuk menghindari duplikat (jika ada multiple entry)
+      snapshot.forEach(child => {
+        const data = child.val();
+        if (data.status === 'ACTIVE' && data.account_number) {
+          accountsMap.set(data.account_number, {
+            account_number: data.account_number,
+            investor_name: data.investor_name || '-'
+          });
+        }
+      });
+      // Jika tidak ada data dari history, coba dari /licenses (fallback)
+      if (accountsMap.size === 0) {
+        const licSnapshot = await db.ref('licenses').once('value');
+        licSnapshot.forEach(child => {
+          const license = child.val();
+          if (license.status === 'ACTIVE') {
+            accountsMap.set(child.key, { account_number: child.key, investor_name: '-' });
+          }
+        });
       }
-    });
-    allActiveAccounts = accounts;
-    accountSelect.innerHTML = '<option value="">-- Pilih akun --</option>';
-    accounts.forEach(acc => {
-      const option = document.createElement('option');
-      option.value = acc;
-      option.textContent = acc;
-      accountSelect.appendChild(option);
-    });
-    if (accounts.length === 0) {
-      accountSelect.innerHTML = '<option value="">Tidak ada akun aktif</option>';
+      allActiveAccounts = Array.from(accountsMap.values());
+      accountSelect.innerHTML = '<option value="">-- Pilih akun --</option>';
+      allActiveAccounts.forEach(acc => {
+        const option = document.createElement('option');
+        option.value = acc.account_number;
+        option.textContent = `${acc.account_number} (${acc.investor_name})`;
+        accountSelect.appendChild(option);
+      });
+      if (allActiveAccounts.length === 0) {
+        accountSelect.innerHTML = '<option value="">Tidak ada akun aktif</option>';
+        console.warn('Tidak ada akun dengan status ACTIVE ditemukan.');
+      } else {
+        console.log(`Ditemukan ${allActiveAccounts.length} akun aktif.`);
+      }
+    } catch (err) {
+      console.error('Gagal memuat daftar akun aktif:', err);
+      accountSelect.innerHTML = '<option value="">Error memuat data</option>';
     }
   }
 
@@ -150,7 +167,6 @@ requireAdmin().then(() => {
     enabledCheck.checked = data.enabled === true;
     modeSelect.value = data.mode || 'auto';
     
-    // Force state (tidak di tampilkan di checkbox, tapi disimpan untuk batch)
     window.currentForceStart = data.force_start === true;
     window.currentForceStop = data.force_stop === true;
     
@@ -188,7 +204,6 @@ requireAdmin().then(() => {
     hybridPanel.style.display = modeSelect.value === 'hybrid' ? 'block' : 'none';
   }
 
-  // --- Ambil pengaturan dari form saat ini (untuk batch) ---
   function getCurrentSettings() {
     const enabled = enabledCheck.checked;
     const mode = modeSelect.value;
@@ -220,7 +235,6 @@ requireAdmin().then(() => {
     };
   }
 
-  // --- Simpan ke satu akun ---
   async function saveToAccount(account, settings, showMessageToast = false) {
     try {
       await db.ref(`ea_controls/${account}`).update(settings);
@@ -232,7 +246,6 @@ requireAdmin().then(() => {
     }
   }
 
-  // --- Batch apply ke semua akun aktif ---
   async function batchApply() {
     if (allActiveAccounts.length === 0) {
       alert('Tidak ada akun aktif.');
@@ -247,20 +260,19 @@ requireAdmin().then(() => {
     batchLog.innerHTML = '';
     let successCount = 0;
     for (const acc of allActiveAccounts) {
-      batchLog.innerHTML += `Memproses akun ${acc}...\n`;
-      const ok = await saveToAccount(acc, settings, false);
+      batchLog.innerHTML += `Memproses akun ${acc.account_number}...\n`;
+      const ok = await saveToAccount(acc.account_number, settings, false);
       if (ok) {
-        batchLog.innerHTML += `✅ Berhasil untuk ${acc}\n`;
+        batchLog.innerHTML += `✅ Berhasil untuk ${acc.account_number}\n`;
         successCount++;
       } else {
-        batchLog.innerHTML += `❌ Gagal untuk ${acc}\n`;
+        batchLog.innerHTML += `❌ Gagal untuk ${acc.account_number}\n`;
       }
       batchLog.scrollTop = batchLog.scrollHeight;
     }
     batchLog.innerHTML += `\nSelesai. ${successCount} dari ${allActiveAccounts.length} akun berhasil diupdate.\n`;
   }
 
-  // --- Event listeners ---
   loadBtn.addEventListener('click', async () => {
     const manual = accountInput.value.trim();
     const selected = accountSelect.value;
@@ -314,8 +326,8 @@ requireAdmin().then(() => {
     setTimeout(() => statusMsg.innerText = '', 3000);
   }
 
-  // Inisialisasi: muat daftar akun aktif
-  loadActiveAccounts();
+  // Inisialisasi
+  await loadActiveAccounts();
 });
 </script>
 </body>
