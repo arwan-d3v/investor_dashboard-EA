@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EA Control Panel - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <style>body{background:#F8FAFC}</style>
+</head>
+<body class="p-4">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-blue-600">EA Control Panel</h1>
+      <a href="index.html" class="bg-gray-500 text-white px-4 py-2 rounded-lg">← Admin</a>
+    </div>
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <div class="mb-4">
+        <label class="block font-medium">Nomor Akun</label>
+        <input type="text" id="accountNumber" class="border rounded p-2 w-full" placeholder="Contoh: 183969086">
+      </div>
+      <button id="loadBtn" class="bg-blue-600 text-white px-4 py-2 rounded">Load Kontrol</button>
+    </div>
+    <div id="controlPanel" class="bg-white rounded-xl shadow-md p-6 mt-6 hidden">
+      <h2 class="text-xl font-semibold mb-4">Pengaturan EA untuk Akun <span id="displayAccount"></span></h2>
+      <div class="space-y-4">
+        <div>
+          <label class="inline-flex items-center">
+            <input type="checkbox" id="enabled" class="mr-2"> <span class="font-medium">Enable EA (Start/Stop)</span>
+          </label>
+        </div>
+        <div>
+          <label class="block font-medium">Mode Operasi</label>
+          <select id="mode" class="border rounded p-2 w-full">
+            <option value="auto">Auto (Gunakan Time Filter Internal EA)</option>
+            <option value="hybrid">Hybrid (Gunakan Jadwal dari Dashboard)</option>
+            <option value="manual">Manual (24 Jam, tanpa filter waktu)</option>
+          </select>
+        </div>
+        <div id="schedulePanel" class="border-t pt-4 hidden">
+          <h3 class="font-medium mb-2">Jadwal Trading (Hanya untuk Mode Hybrid)</h3>
+          <div class="grid grid-cols-5 gap-2 mb-4">
+            <label><input type="checkbox" value="1" class="day-check"> Senin</label>
+            <label><input type="checkbox" value="2" class="day-check"> Selasa</label>
+            <label><input type="checkbox" value="3" class="day-check"> Rabu</label>
+            <label><input type="checkbox" value="4" class="day-check"> Kamis</label>
+            <label><input type="checkbox" value="5" class="day-check"> Jumat</label>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label>Jam Mulai (WITA)</label>
+              <input type="number" id="startHour" min="0" max="23" class="border rounded p-1 w-full">
+              <label>Menit Mulai</label>
+              <input type="number" id="startMinute" min="0" max="59" class="border rounded p-1 w-full">
+            </div>
+            <div>
+              <label>Jam Berhenti (WITA)</label>
+              <input type="number" id="stopHour" min="0" max="23" class="border rounded p-1 w-full">
+              <label>Menit Berhenti</label>
+              <input type="number" id="stopMinute" min="0" max="59" class="border rounded p-1 w-full">
+            </div>
+          </div>
+        </div>
+        <button id="saveBtn" class="bg-green-600 text-white px-4 py-2 rounded w-full">Simpan Pengaturan</button>
+        <div id="statusMsg" class="text-sm text-center mt-2"></div>
+      </div>
+    </div>
+  </div>
+  <script src="../assets/js/firebase-config.js"></script>
+  <script>
+    requireAdmin().then(() => {
+      const db = firebase.database();
+      let currentAccount = '';
+
+      const loadBtn = document.getElementById('loadBtn');
+      const accountInput = document.getElementById('accountNumber');
+      const controlPanel = document.getElementById('controlPanel');
+      const displayAccount = document.getElementById('displayAccount');
+      const enabledCheck = document.getElementById('enabled');
+      const modeSelect = document.getElementById('mode');
+      const schedulePanel = document.getElementById('schedulePanel');
+      const dayChecks = document.querySelectorAll('.day-check');
+      const startHour = document.getElementById('startHour');
+      const startMinute = document.getElementById('startMinute');
+      const stopHour = document.getElementById('stopHour');
+      const stopMinute = document.getElementById('stopMinute');
+      const saveBtn = document.getElementById('saveBtn');
+      const statusMsg = document.getElementById('statusMsg');
+
+      function showMessage(msg, isError = false) {
+        statusMsg.innerText = msg;
+        statusMsg.className = `text-sm text-center mt-2 ${isError ? 'text-red-600' : 'text-green-600'}`;
+        setTimeout(() => { statusMsg.innerText = ''; }, 3000);
+      }
+
+      async function loadControls() {
+        const acc = accountInput.value.trim();
+        if (!acc) { alert('Masukkan nomor akun'); return; }
+        currentAccount = acc;
+        displayAccount.innerText = currentAccount;
+        const ref = db.ref(`ea_controls/${currentAccount}`);
+        const snap = await ref.once('value');
+        const data = snap.val();
+        if (data) {
+          enabledCheck.checked = data.enabled === true;
+          modeSelect.value = data.mode || 'auto';
+          if (data.schedule) {
+            const allowed = data.schedule.allowed_days || {};
+            dayChecks.forEach(chk => {
+              const val = parseInt(chk.value);
+              chk.checked = allowed[val] === true;
+            });
+            startHour.value = data.schedule.start_hour || 7;
+            startMinute.value = data.schedule.start_minute || 5;
+            stopHour.value = data.schedule.stop_hour || 23;
+            stopMinute.value = data.schedule.stop_minute || 45;
+          } else {
+            dayChecks.forEach(chk => chk.checked = true);
+            startHour.value = 7; startMinute.value = 5;
+            stopHour.value = 23; stopMinute.value = 45;
+          }
+        } else {
+          // Default
+          enabledCheck.checked = true;
+          modeSelect.value = 'auto';
+          dayChecks.forEach(chk => chk.checked = true);
+          startHour.value = 7; startMinute.value = 5;
+          stopHour.value = 23; stopMinute.value = 45;
+        }
+        controlPanel.classList.remove('hidden');
+        toggleSchedulePanel();
+      }
+
+      function toggleSchedulePanel() {
+        schedulePanel.style.display = modeSelect.value === 'hybrid' ? 'block' : 'none';
+      }
+
+      modeSelect.addEventListener('change', toggleSchedulePanel);
+
+      async function saveControls() {
+        if (!currentAccount) { alert('Load akun terlebih dahulu'); return; }
+        const enabled = enabledCheck.checked;
+        const mode = modeSelect.value;
+        const allowedDays = {};
+        dayChecks.forEach(chk => {
+          if (chk.checked) allowedDays[parseInt(chk.value)] = true;
+        });
+        const schedule = {
+          allowed_days: allowedDays,
+          start_hour: parseInt(startHour.value),
+          start_minute: parseInt(startMinute.value),
+          stop_hour: parseInt(stopHour.value),
+          stop_minute: parseInt(stopMinute.value)
+        };
+        const payload = {
+          enabled: enabled,
+          mode: mode,
+          schedule: schedule,
+          last_updated: Date.now()
+        };
+        try {
+          await db.ref(`ea_controls/${currentAccount}`).set(payload);
+          showMessage('Pengaturan berhasil disimpan! EA akan membaca dalam 1 menit.', false);
+        } catch (err) {
+          console.error(err);
+          showMessage('Gagal menyimpan: ' + err.message, true);
+        }
+      }
+
+      loadBtn.addEventListener('click', loadControls);
+      saveBtn.addEventListener('click', saveControls);
+      toggleSchedulePanel();
+    });
+  </script>
+</body>
+</html>
