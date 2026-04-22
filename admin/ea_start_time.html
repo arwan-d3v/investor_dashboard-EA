@@ -18,32 +18,62 @@
   </div>
 
   <div class="bg-white rounded-xl shadow-md p-6 mb-6">
-    <div class="mb-4">
-      <label class="block font-medium">Nomor Akun</label>
-      <input type="text" id="accountNumber" class="border rounded p-2 w-full" placeholder="183969086">
-      <button id="loadBtn" class="bg-blue-600 text-white px-4 py-2 rounded mt-2">Muat Pengaturan</button>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <label class="block font-medium mb-1">Pilih Akun Aktif</label>
+        <select id="accountSelect" class="border rounded p-2 w-full">
+          <option value="">-- Muat daftar akun --</option>
+        </select>
+      </div>
+      <div>
+        <label class="block font-medium mb-1">Atau masukkan nomor akun manual</label>
+        <input type="text" id="accountNumber" class="border rounded p-2 w-full" placeholder="183969086">
+      </div>
+    </div>
+    <div class="flex gap-3 mt-4">
+      <button id="loadBtn" class="bg-blue-600 text-white px-4 py-2 rounded">Muat Pengaturan</button>
+      <button id="batchApplyBtn" class="bg-purple-600 text-white px-4 py-2 rounded">Apply ke Semua Akun Aktif</button>
+      <button id="refreshAccountsBtn" class="bg-gray-500 text-white px-4 py-2 rounded">🔄 Refresh Daftar</button>
     </div>
   </div>
 
   <div id="settingsPanel" class="bg-white rounded-xl shadow-md p-6 hidden">
-    <h2 class="text-xl font-semibold mb-4">Jam Mulai Trading per Hari (Senin–Jumat)</h2>
+    <h2 class="text-xl font-semibold mb-4">Jam Mulai Trading per Hari (Senin–Jumat) untuk Akun <span id="displayAccount"></span></h2>
     <div id="scheduleForm" class="space-y-4"></div>
     <button id="saveBtn" class="bg-green-600 text-white px-6 py-2 rounded w-full mt-4">Simpan Pengaturan</button>
     <div id="statusMsg" class="text-sm text-center mt-2"></div>
+  </div>
+
+  <div id="batchProgress" class="bg-white rounded-xl shadow-md p-4 mt-6 hidden">
+    <h3 class="font-bold">Batch Update Progress</h3>
+    <div id="batchLog" class="text-sm font-mono bg-gray-100 p-2 rounded h-40 overflow-y-auto"></div>
   </div>
 </div>
 
 <script src="../assets/js/firebase-config.js"></script>
 <script>
-requireAdmin().then(() => {
+requireAdmin().then(async () => {
   const db = firebase.database();
   let currentAccount = '';
+  let allActiveAccounts = [];
+
+  const accountSelect = document.getElementById('accountSelect');
+  const accountInput = document.getElementById('accountNumber');
+  const loadBtn = document.getElementById('loadBtn');
+  const batchApplyBtn = document.getElementById('batchApplyBtn');
+  const refreshAccountsBtn = document.getElementById('refreshAccountsBtn');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const displayAccountSpan = document.getElementById('displayAccount');
+  const scheduleForm = document.getElementById('scheduleForm');
+  const saveBtn = document.getElementById('saveBtn');
+  const statusMsg = document.getElementById('statusMsg');
+  const batchProgress = document.getElementById('batchProgress');
+  const batchLog = document.getElementById('batchLog');
 
   const days = ['monday','tuesday','wednesday','thursday','friday'];
   const dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
-  const scheduleForm = document.getElementById('scheduleForm');
 
-  function timeToMinutes(timeStr) { // format "HH:MM"
+  function timeToMinutes(timeStr) {
     const [h,m] = timeStr.split(':');
     return parseInt(h)*60 + parseInt(m);
   }
@@ -68,12 +98,56 @@ requireAdmin().then(() => {
     }
   }
 
+  async function loadActiveAccounts() {
+    try {
+      accountSelect.innerHTML = '<option value="">-- Memuat ... --</option>';
+      const accountsSet = new Set();
+      // Coba dari license_history_list
+      const historySnap = await db.ref('license_history_list').once('value');
+      historySnap.forEach(child => {
+        const data = child.val();
+        if (data.status === 'ACTIVE' && data.account_number) {
+          accountsSet.add(data.account_number);
+        }
+      });
+      // Jika tidak ada, coba dari /licenses
+      if (accountsSet.size === 0) {
+        const licSnap = await db.ref('licenses').once('value');
+        licSnap.forEach(child => {
+          const lic = child.val();
+          if (lic.status === 'ACTIVE') {
+            accountsSet.add(child.key);
+          }
+        });
+      }
+      allActiveAccounts = Array.from(accountsSet).sort();
+      accountSelect.innerHTML = '<option value="">-- Pilih akun --</option>';
+      allActiveAccounts.forEach(acc => {
+        const option = document.createElement('option');
+        option.value = acc;
+        option.textContent = acc;
+        accountSelect.appendChild(option);
+      });
+      if (allActiveAccounts.length === 0) {
+        accountSelect.innerHTML = '<option value="">Tidak ada akun aktif</option>';
+      } else {
+        console.log(`Ditemukan ${allActiveAccounts.length} akun aktif.`);
+      }
+    } catch (err) {
+      console.error(err);
+      accountSelect.innerHTML = '<option value="">Error memuat data</option>';
+    }
+  }
+
   async function loadSettings(account) {
-    const ref = db.ref(`ea_start_time/${account}`);
+    if (!account) return;
+    currentAccount = account;
+    displayAccountSpan.innerText = currentAccount;
+    const ref = db.ref(`ea_start_time/${currentAccount}`);
     const snap = await ref.once('value');
     const data = snap.val() || {};
     renderForm(data);
-    document.getElementById('settingsPanel').classList.remove('hidden');
+    settingsPanel.classList.remove('hidden');
   }
 
   async function saveSettings(account) {
@@ -88,29 +162,86 @@ requireAdmin().then(() => {
     settings.last_updated = Date.now();
     try {
       await db.ref(`ea_start_time/${account}`).set(settings);
-      showMessage('Pengaturan disimpan! EA akan membaca dalam 1 menit.', false);
+      showMessage(`Pengaturan disimpan untuk akun ${account}!`, false);
+      return true;
     } catch(err) {
-      showMessage('Gagal menyimpan: '+err.message, true);
+      showMessage(`Gagal menyimpan untuk ${account}: ${err.message}`, true);
+      return false;
     }
   }
 
-  document.getElementById('loadBtn').addEventListener('click', async () => {
-    const acc = document.getElementById('accountNumber').value.trim();
-    if (!acc) return alert('Masukkan nomor akun');
-    currentAccount = acc;
-    await loadSettings(currentAccount);
-  });
-  document.getElementById('saveBtn').addEventListener('click', () => {
-    if (!currentAccount) return;
-    saveSettings(currentAccount);
-  });
+  async function batchApply() {
+    if (allActiveAccounts.length === 0) {
+      alert('Tidak ada akun aktif.');
+      return;
+    }
+    if (!currentAccount) {
+      alert('Harap muat pengaturan untuk satu akun terlebih dahulu sebagai referensi.');
+      return;
+    }
+    // Ambil pengaturan dari form yang sedang ditampilkan
+    const settings = {};
+    for (let day of days) {
+      const timeInput = document.getElementById(day);
+      if (timeInput) {
+        settings[day] = timeToMinutes(timeInput.value);
+      }
+    }
+    settings.last_updated = Date.now();
+    
+    batchProgress.classList.remove('hidden');
+    batchLog.innerHTML = '';
+    let successCount = 0;
+    for (const acc of allActiveAccounts) {
+      batchLog.innerHTML += `Memproses akun ${acc}...\n`;
+      try {
+        await db.ref(`ea_start_time/${acc}`).set(settings);
+        batchLog.innerHTML += `✅ Berhasil untuk ${acc}\n`;
+        successCount++;
+      } catch(err) {
+        batchLog.innerHTML += `❌ Gagal untuk ${acc}: ${err.message}\n`;
+      }
+      batchLog.scrollTop = batchLog.scrollHeight;
+    }
+    batchLog.innerHTML += `\nSelesai. ${successCount} dari ${allActiveAccounts.length} akun berhasil diupdate.\n`;
+  }
 
   function showMessage(msg, isError) {
-    const el = document.getElementById('statusMsg');
-    el.innerText = msg;
-    el.className = `text-sm text-center mt-2 ${isError ? 'text-red-600' : 'text-green-600'}`;
-    setTimeout(() => el.innerText = '', 3000);
+    statusMsg.innerText = msg;
+    statusMsg.className = `text-sm text-center mt-2 ${isError ? 'text-red-600' : 'text-green-600'}`;
+    setTimeout(() => statusMsg.innerText = '', 3000);
   }
+
+  // Event listeners
+  loadBtn.addEventListener('click', async () => {
+    const manual = accountInput.value.trim();
+    const selected = accountSelect.value;
+    const account = manual || selected;
+    if (!account) {
+      alert('Pilih atau masukkan nomor akun.');
+      return;
+    }
+    await loadSettings(account);
+  });
+
+  batchApplyBtn.addEventListener('click', async () => {
+    if (confirm(`Terapkan pengaturan saat ini ke ${allActiveAccounts.length} akun aktif?`)) {
+      await batchApply();
+    }
+  });
+
+  refreshAccountsBtn.addEventListener('click', async () => {
+    await loadActiveAccounts();
+    showMessage('Daftar akun diperbarui', false);
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    if (!currentAccount) return;
+    await saveSettings(currentAccount);
+  });
+
+  // Inisialisasi
+  await loadActiveAccounts();
 });
 </script>
 </body>
