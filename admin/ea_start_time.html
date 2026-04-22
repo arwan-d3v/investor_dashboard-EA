@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atur Jam Mulai EA - KiroiX</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <style>body{background:#F8FAFC}</style>
+</head>
+<body class="p-4">
+<div class="max-w-3xl mx-auto">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-blue-600">Atur Jam Mulai EA (WITA)</h1>
+    <a href="index.html" class="bg-gray-500 text-white px-4 py-2 rounded-lg">← Admin</a>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+    <div class="mb-4">
+      <label class="block font-medium">Nomor Akun</label>
+      <input type="text" id="accountNumber" class="border rounded p-2 w-full" placeholder="183969086">
+      <button id="loadBtn" class="bg-blue-600 text-white px-4 py-2 rounded mt-2">Muat Pengaturan</button>
+    </div>
+  </div>
+
+  <div id="settingsPanel" class="bg-white rounded-xl shadow-md p-6 hidden">
+    <h2 class="text-xl font-semibold mb-4">Jam Mulai Trading per Hari (Senin–Jumat)</h2>
+    <div id="scheduleForm" class="space-y-4"></div>
+    <button id="saveBtn" class="bg-green-600 text-white px-6 py-2 rounded w-full mt-4">Simpan Pengaturan</button>
+    <div id="statusMsg" class="text-sm text-center mt-2"></div>
+  </div>
+</div>
+
+<script src="../assets/js/firebase-config.js"></script>
+<script>
+requireAdmin().then(() => {
+  const db = firebase.database();
+  let currentAccount = '';
+
+  const days = ['monday','tuesday','wednesday','thursday','friday'];
+  const dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+  const scheduleForm = document.getElementById('scheduleForm');
+
+  function timeToMinutes(timeStr) { // format "HH:MM"
+    const [h,m] = timeStr.split(':');
+    return parseInt(h)*60 + parseInt(m);
+  }
+  function minutesToTime(minutes) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+  }
+
+  function renderForm(data) {
+    scheduleForm.innerHTML = '';
+    for (let i=0; i<days.length; i++) {
+      const day = days[i];
+      const defaultValue = data && data[day] ? minutesToTime(data[day]) : '07:05';
+      const div = document.createElement('div');
+      div.className = 'flex items-center justify-between border-b pb-2';
+      div.innerHTML = `
+        <label class="font-medium w-24">${dayNames[i]}</label>
+        <input type="time" id="${day}" value="${defaultValue}" class="border rounded p-1">
+      `;
+      scheduleForm.appendChild(div);
+    }
+  }
+
+  async function loadSettings(account) {
+    const ref = db.ref(`ea_start_time/${account}`);
+    const snap = await ref.once('value');
+    const data = snap.val() || {};
+    renderForm(data);
+    document.getElementById('settingsPanel').classList.remove('hidden');
+  }
+
+  async function saveSettings(account) {
+    const settings = {};
+    for (let day of days) {
+      const timeInput = document.getElementById(day);
+      if (timeInput) {
+        const minutes = timeToMinutes(timeInput.value);
+        settings[day] = minutes;
+      }
+    }
+    settings.last_updated = Date.now();
+    try {
+      await db.ref(`ea_start_time/${account}`).set(settings);
+      showMessage('Pengaturan disimpan! EA akan membaca dalam 1 menit.', false);
+    } catch(err) {
+      showMessage('Gagal menyimpan: '+err.message, true);
+    }
+  }
+
+  document.getElementById('loadBtn').addEventListener('click', async () => {
+    const acc = document.getElementById('accountNumber').value.trim();
+    if (!acc) return alert('Masukkan nomor akun');
+    currentAccount = acc;
+    await loadSettings(currentAccount);
+  });
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    if (!currentAccount) return;
+    saveSettings(currentAccount);
+  });
+
+  function showMessage(msg, isError) {
+    const el = document.getElementById('statusMsg');
+    el.innerText = msg;
+    el.className = `text-sm text-center mt-2 ${isError ? 'text-red-600' : 'text-green-600'}`;
+    setTimeout(() => el.innerText = '', 3000);
+  }
+});
+</script>
+</body>
+</html>
