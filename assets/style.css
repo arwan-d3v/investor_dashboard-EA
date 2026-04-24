@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+
+body { font-family: 'Inter', sans-serif; }
+
+.stat-card {
+    @apply bg-white p-5 rounded-3xl border border-slate-100 shadow-sm transition-transform hover:scale-[1.02];
+}
+
+.stat-label {
+    @apply text-[10px] font-bold text-slate-400 uppercase tracking-wider;
+}
+
+.stat-value {
+    @apply text-2xl font-black text-slate-800 mt-1;
+}
+
+.calendar-day {
+    @apply min-height[110px] p-2 rounded-2xl flex flex-col justify-between transition-all duration-300 border border-slate-50;
+}
+
+.bg-win-heavy { background-color: #10b981; color: white; }
+.bg-win-light { background-color: #ecfdf5; color: #065f46; border-color: #d1fae5; }
+.bg-loss-heavy { background-color: #ef4444; color: white; }
+.bg-loss-light { background-color: #fef2f2; color: #991b1b; border-color: #fee2e2; }
+.bg-neutral { background-color: #ffffff; color: #94a3b8; }
+
+.loader { border-top-color: transparent; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
