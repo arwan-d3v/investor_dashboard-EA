@@ -1,5 +1,6 @@
 const mNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 let chartInstance = null;
+let currentSnapshots = null; // Simpan cache data agar saat ganti bulan tidak perlu fetch ulang
 
 // --- Init UI ---
 const mSel = document.getElementById('monthSel');
@@ -9,8 +10,12 @@ const now = new Date();
 mNames.forEach((m, i) => mSel.innerHTML += `<option value="${i}" ${i==now.getMonth()?'selected':''}>${m}</option>`);
 for(let y=2024; y<=2026; y++) ySel.innerHTML += `<option value="${y}" ${y==now.getFullYear()?'selected':''}>${y}</option>`;
 
-// --- Main Function ---
-// Tambahkan di awal file app.js
+// --- Event Listener untuk Ganti Bulan/Tahun Tanpa Login Ulang ---
+const reRender = () => { if(currentSnapshots) renderVisuals(currentSnapshots); };
+mSel.onchange = reRender;
+ySel.onchange = reRender;
+
+// --- Main Function: Login & Fetch ---
 document.getElementById('btnLoad').onclick = async () => {
     const acc = document.getElementById('accInput').value.trim();
     if(!acc) return alert("Masukkan nomor akun!");
@@ -25,9 +30,10 @@ document.getElementById('btnLoad').onclick = async () => {
             throw new Error("Akun tidak ditemukan atau belum ada data.");
         }
 
-        // Jalankan fungsi update UI (panggil fungsi yang sudah kita buat sebelumnya)
-        updateSummary(metaSnap.val(), snapshotsSnap.val());
-        renderVisuals(snapshotsSnap.val());
+        currentSnapshots = snapshotsSnap.val(); // Simpan ke cache
+
+        updateSummary(metaSnap.val(), currentSnapshots);
+        renderVisuals(currentSnapshots);
 
         // TRANSISI KE DASHBOARD
         document.getElementById('displayAcc').innerText = "Account #" + acc;
@@ -47,33 +53,26 @@ document.getElementById('btnLoad').onclick = async () => {
 // Logika untuk Login Admin
 document.getElementById('btnAdmin').onclick = () => {
     const pin = document.getElementById('adminPin').value.trim();
-    
-    if (!pin) {
-        alert("Silakan masukkan PIN Admin.");
-        return;
-    }
+    if (!pin) return alert("Silakan masukkan PIN Admin.");
 
-    // Ubah "12345" dengan PIN rahasia yang Anda inginkan
     if (pin === "692139") {
-        // Efek loading sesaat
         document.getElementById('btnAdmin').innerText = "Authenticating...";
-        
         setTimeout(() => {
-            // Arahkan ke URL Admin Dashboard Anda
             window.location.href = "https://krx-dashboard.arwan-d3v.workers.dev/admin";
         }, 800);
     } else {
         alert("Akses Ditolak: PIN Tidak Valid!");
-        document.getElementById('adminPin').value = ""; // Kosongkan input
+        document.getElementById('adminPin').value = "";
     }
 };
 
 function toggleLoading(s) {
-    document.getElementById('btnLoader').classList.toggle('hidden', !s);
-    document.getElementById('btnText').innerText = s ? "Mencari Data..." : "Masuk ke Dashboard";
+    const loader = document.getElementById('btnLoader');
+    const text = document.getElementById('btnText');
+    if(loader) loader.classList.toggle('hidden', !s);
+    if(text) text.innerText = s ? "Mencari Data..." : "Masuk ke Dashboard";
 }
 
-// Tambahkan fitur URL Parameter: investor_dashboard.com/?acc=1051057600
 window.onload = () => {
     const params = new URLSearchParams(window.location.search);
     const accParam = params.get('acc');
@@ -86,14 +85,13 @@ window.onload = () => {
 function updateSummary(meta, snapshots) {
     const sortedKeys = Object.keys(snapshots).sort((a,b) => parseInt(a) - parseInt(b));
     const latest = snapshots[sortedKeys[sortedKeys.length - 1]];
-    const initial = meta?.initial_deposit || 0;
+    const initial = meta?.initial_deposit || 1; // Cegah pembagian dengan nol
 
-    // Hitung Max Drawdown secara real-time
     let maxEq = 0, maxDD = 0;
     sortedKeys.forEach(k => {
         const eq = snapshots[k].equity;
         if(eq > maxEq) maxEq = eq;
-        let dd = ((maxEq - eq) / maxEq) * 100;
+        let dd = maxEq > 0 ? ((maxEq - eq) / maxEq) * 100 : 0;
         if(dd > maxDD) maxDD = dd;
     });
 
@@ -110,14 +108,20 @@ function renderVisuals(snapshots) {
     const dailyMap = new Map();
     const cLabels = [], cData = [];
 
-    Object.keys(snapshots).sort().forEach(ts => {
+    const sortedKeys = Object.keys(snapshots).sort((a,b) => parseInt(a) - parseInt(b));
+    
+    sortedKeys.forEach(ts => {
         const s = snapshots[ts];
         const d = new Date(parseInt(ts));
+        
+        // Data untuk Chart (Semua data agar curve terlihat panjang)
+        cLabels.push(d.getDate() + "/" + (d.getMonth()+1));
+        cData.push(s.equity);
+
+        // Data untuk Kalender (Hanya bulan & tahun terpilih)
         if(d.getMonth() === month && d.getFullYear() === year) {
             dailyMap.set(d.getDate(), s);
         }
-        cLabels.push(d.getDate() + "/" + (d.getMonth()+1));
-        cData.push(s.equity);
     });
 
     drawChart(cLabels, cData);
@@ -126,7 +130,9 @@ function renderVisuals(snapshots) {
 
 function drawCalendar(year, month, dailyMap) {
     const grid = document.getElementById('calGrid');
+    if(!grid) return;
     grid.innerHTML = '';
+    
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
@@ -139,17 +145,17 @@ function drawCalendar(year, month, dailyMap) {
         const lots = data ? parseFloat(data.daily_lots || 0) : 0;
 
         let style = "bg-neutral";
-        if(growth > 0.01) style = growth > 1.5 ? "bg-win-heavy" : "bg-win-light";
-        else if(growth < -0.01) style = growth < -1.5 ? "bg-loss-heavy" : "bg-loss-light";
+        if(growth > 0.01) style = growth > 1.5 ? "bg-win-heavy text-white" : "bg-win-light";
+        else if(growth < -0.01) style = growth < -1.5 ? "bg-loss-heavy text-white" : "bg-loss-light";
 
         grid.innerHTML += `
-            <div class="calendar-day ${style}">
+            <div class="calendar-day ${style} p-2 rounded-xl flex flex-col justify-between border border-slate-50 min-h-[90px]">
                 <span class="text-[9px] font-black opacity-30">${d}</span>
                 <div class="text-center">
                     <span class="text-sm font-black block">${data ? growth.toFixed(2)+'%' : '-'}</span>
                     <div class="mt-1 flex flex-col leading-none">
-                        <span class="text-[9px] font-bold opacity-80">${profit != 0 ? '$'+profit.toFixed(0) : ''}</span>
-                        <span class="text-[7px] font-black uppercase opacity-60">${lots > 0 ? lots.toFixed(2)+' L' : ''}</span>
+                        <span class="text-[9px] font-bold opacity-80">${data && profit !== 0 ? '$'+profit.toFixed(0) : ''}</span>
+                        <span class="text-[7px] font-black uppercase opacity-60">${data && lots > 0 ? lots.toFixed(2)+' L' : ''}</span>
                     </div>
                 </div>
                 <div></div>
@@ -159,6 +165,7 @@ function drawCalendar(year, month, dailyMap) {
 
 function drawChart(labels, data) {
     const ctx = document.getElementById('equityChart');
+    if(!ctx) return;
     if(chartInstance) chartInstance.destroy();
     chartInstance = new Chart(ctx, {
         type: 'line',
@@ -167,23 +174,29 @@ function drawChart(labels, data) {
             datasets: [{
                 data: data,
                 borderColor: '#3b82f6',
-                borderWidth: 3,
+                borderWidth: 2,
                 fill: true,
                 tension: 0.4,
                 pointRadius: 0,
                 backgroundColor: (c) => {
-                    const g = c.chart.ctx.createLinearGradient(0, 0, 0, 200);
-                    g.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
-                    g.addColorStop(1, 'rgba(59, 130, 246, 0)');
-                    return g;
+                    const chart = c.chart;
+                    const {ctx, chartArea} = chart;
+                    if (!chartArea) return null;
+                    const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                    gradient.addColorStop(0, 'rgba(59, 130, 246, 0)');
+                    gradient.addColorStop(1, 'rgba(59, 130, 246, 0.2)');
+                    return gradient;
                 }
             }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: false }, scales: { x: { display: false }, y: { ticks: { font: { size: 9 } } } } }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: false }, 
+            scales: { 
+                x: { display: false }, 
+                y: { ticks: { font: { size: 9 }, callback: (v) => '$' + v.toLocaleString() } } 
+            } 
+        }
     });
-}
-
-function toggleLoading(s) {
-    document.getElementById('btnLoader').classList.toggle('hidden', !s);
-    document.getElementById('btnText').innerText = s ? "Processing..." : "Update Dashboard";
 }
