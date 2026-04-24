@@ -11,29 +11,14 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <style>
     body { background-color: #F8FAFC; }
-    .calendar-day {
-      transition: all 0.2s;
-      cursor: pointer;
-    }
-    .calendar-day:hover {
-      transform: scale(1.05);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      z-index: 10;
-      position: relative;
-    }
+    .calendar-day { transition: all 0.2s; cursor: pointer; }
+    .calendar-day:hover { transform: scale(1.05); box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 10; position: relative; }
     .tooltip-info {
-      position: absolute;
-      background: #1e293b;
-      color: #f1f5f9;
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-size: 12px;
-      z-index: 20;
-      white-space: nowrap;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      pointer-events: none;
+      position: absolute; background: #1e293b; color: #f1f5f9; padding: 6px 10px;
+      border-radius: 8px; font-size: 12px; z-index: 20; white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2); pointer-events: none;
     }
-    /* Soft color palette for calendar */
+    /* Soft colors for calendar */
     .bg-soft-green-dark { background-color: #86efac; }  /* >2% */
     .bg-soft-green { background-color: #bbf7d0; }       /* 1-2% */
     .bg-soft-green-light { background-color: #dcfce7; } /* 0.5-1% */
@@ -51,7 +36,6 @@
     <a href="index.html" class="bg-gray-500 text-white px-4 py-2 rounded-lg">← Admin</a>
   </div>
 
-  <!-- Pencarian akun & pilihan bulan/tahun -->
   <div class="bg-white rounded-xl shadow-md p-4 mb-6">
     <div class="flex flex-col sm:flex-row gap-2">
       <input type="text" id="accountNumber" placeholder="Nomor Akun" class="border rounded p-2 flex-1" autocomplete="off">
@@ -61,7 +45,6 @@
     </div>
   </div>
 
-  <!-- Ringkasan cards -->
   <div id="summaryCards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 hidden">
     <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Initial Deposit</div><div class="text-2xl font-bold" id="initDeposit">-</div></div>
     <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Latest Equity</div><div class="text-2xl font-bold" id="latestEquity">-</div></div>
@@ -69,17 +52,14 @@
     <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Max Drawdown %</div><div class="text-2xl font-bold" id="maxDrawdown">-</div></div>
   </div>
 
-  <!-- Line chart all time (equity growth) -->
   <div class="bg-white rounded-xl shadow p-4 mb-6 hidden" id="chartContainer">
     <div class="flex justify-between items-center mb-2">
-      <h3 class="font-semibold text-gray-700">Equity Growth (All Time)</h3>
+      <h3 class="font-semibold text-gray-700">Equity Growth (All Time) – periode 07:00 WITA → 05:59 WITA</h3>
       <div class="text-xs text-gray-400" id="chartRangeInfo"></div>
     </div>
     <canvas id="balanceChart" height="100"></canvas>
-    <p class="text-xs text-gray-400 mt-2 text-center">*Grafik menampilkan seluruh riwayat equity sejak deposit pertama</p>
   </div>
 
-  <!-- Calendar View -->
   <div class="bg-white rounded-xl shadow p-4 mb-6 hidden" id="calendarContainer">
     <h3 class="font-bold text-lg mb-3 text-center" id="calendarTitle"></h3>
     <div class="grid grid-cols-7 gap-1 text-center text-sm font-medium bg-gray-100 p-2 rounded-t">
@@ -135,7 +115,6 @@ requireAdmin().then(() => {
   }
 
   async function loadData(account, year, month) {
-    // Ambil metadata
     const metaSnap = await db.ref(`account_data/${account}/metadata`).once('value');
     const meta = metaSnap.val();
     if(!meta) {
@@ -146,7 +125,6 @@ requireAdmin().then(() => {
       return;
     }
 
-    // Ambil semua snapshot
     const snapshotsRef = db.ref(`account_data/${account}/snapshots`);
     const snap = await snapshotsRef.once('value');
     const snapshots = [];
@@ -161,7 +139,6 @@ requireAdmin().then(() => {
       return;
     }
 
-    // Ringkasan
     const latest = snapshots[snapshots.length-1];
     const initDeposit = meta.initial_deposit || latest.balance;
     const totalGrowth = ((latest.equity - initDeposit) / initDeposit * 100).toFixed(2);
@@ -174,8 +151,11 @@ requireAdmin().then(() => {
     document.getElementById('maxDrawdown').innerHTML = `<span class="text-red-600">${maxDraw.toFixed(2)}%</span>`;
     document.getElementById('summaryCards').classList.remove('hidden');
 
-    // Line chart ALL TIME (semua snapshot)
-    const allLabels = snapshots.map(s => new Date(s.ts + 8*3600*1000).toLocaleDateString('id-ID'));
+    // Line chart all time (setiap snapshot sebagai titik)
+    const allLabels = snapshots.map(s => {
+      const witaDate = new Date(s.ts + 8*3600*1000);
+      return witaDate.toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'});
+    });
     const equityData = snapshots.map(s => s.equity);
     if(balanceChart) balanceChart.destroy();
     const ctx = document.getElementById('balanceChart').getContext('2d');
@@ -184,7 +164,7 @@ requireAdmin().then(() => {
       data: {
         labels: allLabels,
         datasets: [{
-          label: 'Equity Growth',
+          label: 'Equity',
           data: equityData,
           borderColor: '#3B82F6',
           backgroundColor: 'rgba(59,130,246,0.05)',
@@ -197,26 +177,29 @@ requireAdmin().then(() => {
       options: {
         responsive: true,
         maintainAspectRatio: true,
-        plugins: {
-          tooltip: { callbacks: { label: (ctx) => `Equity: $${ctx.raw.toFixed(2)}` } }
-        },
+        plugins: { tooltip: { callbacks: { label: (ctx) => `Equity: $${ctx.raw.toFixed(2)}` } } },
         scales: { y: { beginAtZero: false, title: { display: true, text: 'Equity ($)' } } }
       }
     });
     document.getElementById('chartContainer').classList.remove('hidden');
     document.getElementById('chartRangeInfo').innerText = `${snapshots.length} data points | ${allLabels[0]} to ${allLabels[allLabels.length-1]}`;
 
-    // Calendar: kelompokkan per hari berdasarkan daily_growth_percent
+    // Calendar grouping berdasarkan tanggal WITA (start of day 07:00)
     const dailyMap = new Map();
     snapshots.forEach(s => {
       const witaDate = new Date(s.ts + 8*3600*1000);
       const dateKey = witaDate.toISOString().slice(0,10);
       if(!dailyMap.has(dateKey) || dailyMap.get(dateKey).ts < s.ts) {
-        dailyMap.set(dateKey, { growth: s.daily_growth_percent, ts: s.ts, equity: s.equity, daily_profit: s.daily_profit });
+        dailyMap.set(dateKey, {
+          growth: s.daily_growth_percent,
+          ts: s.ts,
+          equity: s.equity,
+          daily_profit: s.daily_profit
+        });
       }
     });
 
-    // Generate kalender untuk bulan tertentu
+    // Buat grid kalender mulai dari Senin pada minggu yang mencakup tanggal 1
     const firstDayOfMonth = new Date(year, month, 1);
     let start = new Date(firstDayOfMonth);
     if(start.getDay() === 0) start.setDate(start.getDate() - 6);
@@ -252,14 +235,12 @@ requireAdmin().then(() => {
           tooltip.style.top = rect.top + window.scrollY - 35 + 'px';
           div._tooltip = tooltip;
         });
-        div.addEventListener('mouseleave', () => {
-          if(div._tooltip) div._tooltip.remove();
-        });
+        div.addEventListener('mouseleave', () => { if(div._tooltip) div._tooltip.remove(); });
       }
       grid.appendChild(div);
     });
 
-    document.getElementById('calendarTitle').innerText = `${new Date(year, month).toLocaleString('id-ID', {month:'long', year:'numeric'})}`;
+    document.getElementById('calendarTitle').innerHTML = `${new Date(year, month).toLocaleString('id-ID', {month:'long', year:'numeric'})} (periode 07:00 WITA → 05:59 WITA)`;
     document.getElementById('calendarContainer').classList.remove('hidden');
     document.getElementById('loadingMsg').classList.add('hidden');
   }
