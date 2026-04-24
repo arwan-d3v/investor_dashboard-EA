@@ -10,29 +10,52 @@ mNames.forEach((m, i) => mSel.innerHTML += `<option value="${i}" ${i==now.getMon
 for(let y=2024; y<=2026; y++) ySel.innerHTML += `<option value="${y}" ${y==now.getFullYear()?'selected':''}>${y}</option>`;
 
 // --- Main Function ---
+// Tambahkan di awal file app.js
 document.getElementById('btnLoad').onclick = async () => {
     const acc = document.getElementById('accInput').value.trim();
-    if(!acc) return;
+    if(!acc) return alert("Masukkan nomor akun!");
 
     toggleLoading(true);
 
     try {
         const metaSnap = await db.ref(`account_data/${acc}/metadata`).once('value');
-        const snap = await db.ref(`account_data/${acc}/snapshots`).once('value');
-        
-        const meta = metaSnap.val();
-        const snapshots = snap.val();
+        const snapshotsSnap = await db.ref(`account_data/${acc}/snapshots`).once('value');
 
-        if(!snapshots) throw new Error("Data Kosong");
+        if(!snapshotsSnap.exists()) {
+            throw new Error("Akun tidak ditemukan atau belum ada data.");
+        }
 
-        updateSummary(meta, snapshots);
-        renderVisuals(snapshots);
+        // Jalankan fungsi update UI (panggil fungsi yang sudah kita buat sebelumnya)
+        updateSummary(metaSnap.val(), snapshotsSnap.val());
+        renderVisuals(snapshotsSnap.val());
+
+        // TRANSISI KE DASHBOARD
+        document.getElementById('displayAcc').innerText = "Account #" + acc;
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('dashboardView').classList.remove('hidden');
+        setTimeout(() => {
+            document.getElementById('dashboardView').classList.add('opacity-100');
+        }, 100);
 
     } catch (e) {
-        console.error(e);
         alert(e.message);
     } finally {
         toggleLoading(false);
+    }
+};
+
+function toggleLoading(s) {
+    document.getElementById('btnLoader').classList.toggle('hidden', !s);
+    document.getElementById('btnText').innerText = s ? "Mencari Data..." : "Masuk ke Dashboard";
+}
+
+// Tambahkan fitur URL Parameter: investor_dashboard.com/?acc=1051057600
+window.onload = () => {
+    const params = new URLSearchParams(window.location.search);
+    const accParam = params.get('acc');
+    if(accParam) {
+        document.getElementById('accInput').value = accParam;
+        document.getElementById('btnLoad').click();
     }
 };
 
