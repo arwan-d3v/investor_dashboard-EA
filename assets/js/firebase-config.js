@@ -10,9 +10,17 @@ const firebaseConfig = {
   measurementId: "G-GK269RNX4Y"
 };
 
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
+// Inisialisasi Firebase (Cek agar tidak inisialisasi ganda)
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
+// DEFINISI VARIABEL GLOBAL
+// Menggunakan 'window' agar variabel dipastikan terbaca oleh script lain (app.js)
+window.database = firebase.database();
+window.db = firebase.database(); // ALIAS: Agar error 'db is not defined' hilang
+
+// Helper Fungsi Admin
 function isAdmin() {
   const user = firebase.auth().currentUser;
   return user && user.email === "kiroix@gmail.com";
@@ -21,8 +29,8 @@ function isAdmin() {
 async function requireAdmin() {
   return new Promise((resolve) => {
     firebase.auth().onAuthStateChanged(user => {
+      // Investor tidak perlu melewati fungsi ini, fungsi ini hanya untuk halaman /admin
       if (!user || user.email !== "kiroix@gmail.com") {
-        // Redirect ke halaman login jika belum login atau bukan admin
         window.location.href = "/login.html";
       } else {
         resolve();
