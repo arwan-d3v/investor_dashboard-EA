@@ -44,6 +44,30 @@ document.getElementById('btnLoad').onclick = async () => {
     }
 };
 
+// Logika untuk Login Admin
+document.getElementById('btnAdmin').onclick = () => {
+    const pin = document.getElementById('adminPin').value.trim();
+    
+    if (!pin) {
+        alert("Silakan masukkan PIN Admin.");
+        return;
+    }
+
+    // Ubah "12345" dengan PIN rahasia yang Anda inginkan
+    if (pin === "692139") {
+        // Efek loading sesaat
+        document.getElementById('btnAdmin').innerText = "Authenticating...";
+        
+        setTimeout(() => {
+            // Arahkan ke URL Admin Dashboard Anda
+            window.location.href = "https://krx-dashboard.arwan-d3v.workers.dev/admin";
+        }, 800);
+    } else {
+        alert("Akses Ditolak: PIN Tidak Valid!");
+        document.getElementById('adminPin').value = ""; // Kosongkan input
+    }
+};
+
 function toggleLoading(s) {
     document.getElementById('btnLoader').classList.toggle('hidden', !s);
     document.getElementById('btnText').innerText = s ? "Mencari Data..." : "Masuk ke Dashboard";
