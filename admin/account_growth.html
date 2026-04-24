@@ -52,14 +52,16 @@
     <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Max Drawdown %</div><div class="text-2xl font-bold" id="maxDrawdown">-</div></div>
   </div>
 
+  <!-- Grafik equity all time -->
   <div class="bg-white rounded-xl shadow p-4 mb-6 hidden" id="chartContainer">
-    <div class="flex justify-between items-center mb-2">
-      <h3 class="font-semibold text-gray-700">Equity Growth (All Time) – periode 07:00 WITA → 05:59 WITA</h3>
-      <div class="text-xs text-gray-400" id="chartRangeInfo"></div>
+    <h3 class="font-semibold text-gray-700 mb-2">Equity Growth (All Time) – periode 07:00 WITA → 05:59 WITA</h3>
+    <div class="h-[250px] md:h-[350px]">
+      <canvas id="balanceChart"></canvas>
     </div>
-    <canvas id="balanceChart" height="100"></canvas>
+    <div class="text-xs text-gray-400 mt-2 text-center" id="chartRangeInfo"></div>
   </div>
 
+  <!-- Calendar -->
   <div class="bg-white rounded-xl shadow p-4 mb-6 hidden" id="calendarContainer">
     <h3 class="font-bold text-lg mb-3 text-center" id="calendarTitle"></h3>
     <div class="grid grid-cols-7 gap-1 text-center text-sm font-medium bg-gray-100 p-2 rounded-t">
@@ -118,7 +120,7 @@ requireAdmin().then(() => {
     const metaSnap = await db.ref(`account_data/${account}/metadata`).once('value');
     const meta = metaSnap.val();
     if(!meta) {
-      document.getElementById('loadingMsg').innerHTML = 'Akun tidak ditemukan. Pastikan EA monitor sudah berjalan dan mengirim data.';
+      document.getElementById('loadingMsg').innerHTML = 'Akun tidak ditemukan. Pastikan EA monitor sudah berjalan.';
       document.getElementById('summaryCards').classList.add('hidden');
       document.getElementById('chartContainer').classList.add('hidden');
       document.getElementById('calendarContainer').classList.add('hidden');
@@ -139,6 +141,7 @@ requireAdmin().then(() => {
       return;
     }
 
+    // Ringkasan
     const latest = snapshots[snapshots.length-1];
     const initDeposit = meta.initial_deposit || latest.balance;
     const totalGrowth = ((latest.equity - initDeposit) / initDeposit * 100).toFixed(2);
@@ -151,44 +154,67 @@ requireAdmin().then(() => {
     document.getElementById('maxDrawdown').innerHTML = `<span class="text-red-600">${maxDraw.toFixed(2)}%</span>`;
     document.getElementById('summaryCards').classList.remove('hidden');
 
-    // Line chart all time (setiap snapshot sebagai titik)
-    const allLabels = snapshots.map(s => {
-      const witaDate = new Date(s.ts + 8*3600*1000);
-      return witaDate.toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'});
-    });
-    const equityData = snapshots.map(s => s.equity);
+    // --- GRAFIK PROPORSIONAL ---
+    const equities = snapshots.map(s => s.equity);
+    const minEq = Math.min(...equities);
+    const maxEq = Math.max(...equities);
+    const margin = (maxEq - minEq) * 0.2; // 20% padding
+
     if(balanceChart) balanceChart.destroy();
     const ctx = document.getElementById('balanceChart').getContext('2d');
     balanceChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: allLabels,
+        labels: snapshots.map(s => {
+          // Label untuk sumbu x (tidak terlalu penting, biar rapi)
+          const witaDate = new Date(s.ts + 8*3600*1000);
+          return witaDate.toLocaleDateString('id-ID', {day:'numeric', month:'short'});
+        }),
         datasets: [{
           label: 'Equity',
-          data: equityData,
+          data: equities,
           borderColor: '#3B82F6',
-          backgroundColor: 'rgba(59,130,246,0.05)',
+          borderWidth: 2,
+          pointRadius: 0,
           fill: true,
-          tension: 0.2,
-          pointRadius: 2,
-          pointHoverRadius: 5
+          backgroundColor: (context) => {
+            const chart = context.chart;
+            const {ctx, chartArea} = chart;
+            if (!chartArea) return null;
+            const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0)');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.1)');
+            return gradient;
+          },
+          tension: 0.3
         }]
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
-        plugins: { tooltip: { callbacks: { label: (ctx) => `Equity: $${ctx.raw.toFixed(2)}` } } },
-        scales: { y: { beginAtZero: false, title: { display: true, text: 'Equity ($)' } } }
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            suggestedMin: minEq - margin,
+            suggestedMax: maxEq + margin,
+            ticks: { callback: (value) => '$' + value.toLocaleString() }
+          },
+          x: { grid: { display: false }, ticks: { maxRotation: 45, autoSkip: true } }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => `Equity: $${ctx.raw.toFixed(2)}` } }
+        }
       }
     });
     document.getElementById('chartContainer').classList.remove('hidden');
-    document.getElementById('chartRangeInfo').innerText = `${snapshots.length} data points | ${allLabels[0]} to ${allLabels[allLabels.length-1]}`;
+    document.getElementById('chartRangeInfo').innerText = `${snapshots.length} titik data | ${new Date(snapshots[0].ts + 8*3600*1000).toLocaleDateString('id-ID')} sd ${new Date(snapshots[snapshots.length-1].ts + 8*3600*1000).toLocaleDateString('id-ID')}`;
 
-    // Calendar grouping berdasarkan tanggal WITA (start of day 07:00)
+    // --- KALENDER DENGAN SHIFT -7 JAM (periode 07:00-05:59) ---
     const dailyMap = new Map();
     snapshots.forEach(s => {
-      const witaDate = new Date(s.ts + 8*3600*1000);
-      const dateKey = witaDate.toISOString().slice(0,10);
+      // Shift mundur 7 jam, sehingga jam 07:00 WITA menjadi 00:00 di tanggal yang sama.
+      const reportingDate = new Date(s.ts + (8 * 3600 * 1000) - (7 * 3600 * 1000));
+      const dateKey = reportingDate.toISOString().slice(0,10);
       if(!dailyMap.has(dateKey) || dailyMap.get(dateKey).ts < s.ts) {
         dailyMap.set(dateKey, {
           growth: s.daily_growth_percent,
@@ -199,7 +225,7 @@ requireAdmin().then(() => {
       }
     });
 
-    // Buat grid kalender mulai dari Senin pada minggu yang mencakup tanggal 1
+    // Generate grid kalender
     const firstDayOfMonth = new Date(year, month, 1);
     let start = new Date(firstDayOfMonth);
     if(start.getDay() === 0) start.setDate(start.getDate() - 6);
