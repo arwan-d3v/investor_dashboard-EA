@@ -3,89 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Investor Dashboard | KiroiX AI</title>
+    <title>KiroiX AI | Investor & Admin Portal</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
-<body class="bg-slate-50 text-slate-900 antialiased">
+<body class="bg-slate-50 text-slate-900 antialiased selection:bg-blue-200">
 
-    <div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-white">
-        <div class="w-full max-w-md p-8 text-center">
-            <div class="mb-6">
-                <h1 class="text-3xl font-black text-slate-800 tracking-tighter">KiroiX <span class="text-blue-600">INVESTOR</span></h1>
-                <p class="text-slate-400 text-sm font-bold uppercase tracking-widest mt-2">Account Monitoring System</p>
-            </div>
-            <div class="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-blue-50/50">
-                <p class="text-xs font-bold text-slate-400 mb-4 uppercase">Masukkan Nomor Akun MT5 Anda</p>
-                <input type="text" id="accInput" placeholder="Contoh: 1051057600" 
-                    class="w-full bg-white border border-slate-200 p-4 rounded-2xl text-center text-xl font-black outline-none focus:ring-4 focus:ring-blue-100 transition-all mb-4">
+    <div id="loginScreen" class="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 transition-all duration-700 z-50 fixed inset-0">
+        
+        <div class="mb-10 text-center">
+            <h1 class="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter">KiroiX <span class="text-blue-600">AI</span></h1>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Ecosystem Portal</p>
+        </div>
+
+        <div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6 relative">
+            
+            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-blue-100/50 flex flex-col justify-center transition-transform hover:-translate-y-1">
+                <div class="mb-8 text-center">
+                    <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tight">Investor Access</h2>
+                    <p class="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">Read-Only Monitoring</p>
+                </div>
+                
+                <input type="text" id="accInput" placeholder="Enter Account Number" 
+                    class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl text-center text-lg font-black outline-none focus:ring-4 focus:ring-blue-100 transition-all mb-4 text-slate-700 placeholder-slate-300">
+                
                 <button id="btnLoad" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-3">
-                    <span id="btnText">Masuk ke Dashboard</span>
-                    <div id="btnLoader" class="hidden loader w-4 h-4 border-2 border-white rounded-full"></div>
+                    <span id="btnText">View Dashboard</span>
+                    <div id="btnLoader" class="hidden loader w-5 h-5 border-2 border-white rounded-full"></div>
                 </button>
             </div>
-            <p class="mt-8 text-[10px] font-bold text-slate-300 uppercase tracking-widest">© 2026 KiroiX AI Ecosystem</p>
+
+            <div class="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-xl shadow-slate-900/50 flex flex-col justify-center transition-transform hover:-translate-y-1 relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mr-8 -mt-8 w-40 h-40 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none"></div>
+                
+                <div class="mb-8 text-center relative z-10">
+                    <div class="w-14 h-14 bg-slate-800 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-700">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    </div>
+                    <h2 class="text-2xl font-black text-white tracking-tight">Admin Portal</h2>
+                    <p class="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-widest">System Management</p>
+                </div>
+                
+                <input type="password" id="adminPin" placeholder="Enter Security PIN" 
+                    class="w-full bg-slate-800/50 border border-slate-700 p-4 rounded-2xl text-center text-lg font-black outline-none focus:ring-4 focus:ring-emerald-500/20 transition-all mb-4 text-emerald-400 placeholder-slate-600 relative z-10">
+                
+                <button id="btnAdmin" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-black py-4 rounded-2xl shadow-lg shadow-emerald-900/50 transition-all active:scale-95 flex items-center justify-center gap-3 relative z-10">
+                    Login to Admin
+                </button>
+            </div>
+
         </div>
+        
+        <p class="mt-12 text-[10px] font-bold text-slate-400 uppercase tracking-widest">© 2026 KiroiX AI Engine</p>
     </div>
 
     <div id="dashboardView" class="hidden opacity-0 transition-opacity duration-700 max-w-6xl mx-auto px-4 pt-6 pb-20">
+        
         <header class="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 mb-6 flex flex-wrap gap-4 items-center justify-between">
             <div class="flex items-center gap-4">
-                <button onclick="location.reload()" class="p-2 hover:bg-slate-100 rounded-xl transition-all">
-                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                <button onclick="location.reload()" class="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all border border-slate-100">
+                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                 </button>
                 <div>
-                    <h2 class="text-sm font-black text-slate-800" id="displayAcc">-</h2>
-                    <p class="text-[9px] font-bold text-slate-400 uppercase">Investor Read-Only</p>
+                    <h2 class="text-sm md:text-base font-black text-slate-800" id="displayAcc">-</h2>
+                    <p class="text-[9px] font-bold text-blue-500 uppercase tracking-wider">Investor Read-Only</p>
                 </div>
             </div>
-            <div class="flex gap-2">
-                <select id="monthSel" class="bg-slate-50 border border-slate-100 p-2 rounded-xl text-xs font-bold outline-none"></select>
-                <select id="yearSel" class="bg-slate-50 border border-slate-100 p-2 rounded-xl text-xs font-bold outline-none"></select>
+            <div class="flex gap-2 w-full md:w-auto">
+                <select id="monthSel" class="flex-1 md:flex-none bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-100"></select>
+                <select id="yearSel" class="flex-1 md:flex-none bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-100"></select>
             </div>
         </header>
 
         <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div class="stat-card">
-                <p class="stat-label">Initial Deposit</p>
-                <p id="statDeposit" class="stat-value">$0</p>
+            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm transition-transform hover:scale-[1.02]">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Initial Deposit</p>
+                <p id="statDeposit" class="text-2xl font-black text-slate-800 mt-1">$0</p>
             </div>
-            <div class="stat-card">
-                <p class="stat-label">Current Equity</p>
-                <p id="statEquity" class="stat-value">$0</p>
+            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm transition-transform hover:scale-[1.02]">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Equity</p>
+                <p id="statEquity" class="text-2xl font-black text-slate-800 mt-1">$0</p>
             </div>
-            <div class="stat-card">
-                <p class="stat-label">Growth</p>
-                <p id="statGrowth" class="stat-value text-emerald-500">0%</p>
+            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm transition-transform hover:scale-[1.02]">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Growth</p>
+                <p id="statGrowth" class="text-2xl font-black text-emerald-500 mt-1">0%</p>
             </div>
-            <div class="stat-card">
-                <p class="stat-label">Max Drawdown</p>
-                <p id="statDD" class="stat-value text-red-500">0%</p>
+            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm transition-transform hover:scale-[1.02]">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Max Drawdown</p>
+                <p id="statDD" class="text-2xl font-black text-red-500 mt-1">0%</p>
             </div>
         </section>
 
-        <main class="grid lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-                <h2 class="text-lg font-black text-slate-800 mb-4 uppercase tracking-tight">Performance Calendar</h2>
-                <div id="calGrid" class="grid grid-cols-7 gap-2"></div>
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="lg:col-span-2 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm overflow-x-auto">
+                <div class="flex justify-between items-end mb-6 min-w-[500px]">
+                    <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Daily Performance</h2>
+                    <div class="flex gap-4 text-[9px] font-bold text-slate-400 uppercase">
+                        <span class="flex items-center gap-1.5"><i class="w-2.5 h-2.5 rounded-full bg-[#10b981]"></i> Profit</span>
+                        <span class="flex items-center gap-1.5"><i class="w-2.5 h-2.5 rounded-full bg-[#ef4444]"></i> Loss</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 gap-2 mb-2 text-center text-[10px] font-black text-slate-300 uppercase min-w-[500px]">
+                    <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+                </div>
+                <div id="calGrid" class="grid grid-cols-7 gap-2 min-w-[500px]"></div>
             </div>
+
             <aside class="space-y-6">
                 <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                     <h2 class="text-md font-black text-slate-800 mb-4 uppercase tracking-tight">Equity Curve</h2>
-                    <canvas id="equityChart"></canvas>
+                    <div class="h-52 w-full relative">
+                        <canvas id="equityChart"></canvas>
+                    </div>
                 </div>
-                <div class="bg-slate-900 p-6 rounded-[2rem] text-white shadow-xl">
-                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Active Server</p>
-                    <p id="brokerName" class="text-lg font-bold text-blue-400 mt-1">Disconnect</p>
-                    <div class="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center">
-                        <span class="text-xs font-bold text-emerald-400 flex items-center gap-2">● ONLINE</span>
-                        <span id="lastSync" class="text-[9px] font-bold text-slate-500">-</span>
+                
+                <div class="bg-slate-900 p-6 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+                    <div class="absolute -right-10 -top-10 w-32 h-32 bg-blue-500/10 blur-2xl rounded-full pointer-events-none"></div>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest relative z-10">Active Server</p>
+                    <p id="brokerName" class="text-lg font-bold text-blue-400 mt-1 relative z-10">Disconnect</p>
+                    <div class="mt-6 pt-6 border-t border-slate-800 flex justify-between items-center relative z-10">
+                        <span class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> ONLINE
+                        </span>
+                        <span id="lastSync" class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">System Active</span>
                     </div>
                 </div>
             </aside>
+            
         </main>
     </div>
 
