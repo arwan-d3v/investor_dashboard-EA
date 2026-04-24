@@ -3,98 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KiroiX AI Trade - Investor Dashboard</title>
+    <title>KiroiX AI Trade - Final Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .calendar-day { min-height: 85px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .calendar-day:hover { transform: scale(1.02); z-index: 10; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .calendar-day { min-height: 100px; transition: transform 0.2s ease; border: 1px solid #f1f5f9; }
+        .calendar-day:hover { transform: translateY(-2px); z-index: 20; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        
+        /* State Colors */
         .bg-win-heavy { background-color: #22c55e; color: white; }
-        .bg-win-light { background-color: #dcfce7; color: #166534; }
+        .bg-win-light { background-color: #bbf7d0; color: #166534; }
         .bg-loss-heavy { background-color: #ef4444; color: white; }
-        .bg-loss-light { background-color: #fee2e2; color: #991b1b; }
-        .bg-neutral { background-color: #f8fafc; color: #64748b; }
-        .loader { border-top-color: #3b82f6; animation: spinner 1.5s linear infinite; }
+        .bg-loss-light { background-color: #fecaca; color: #991b1b; }
+        .bg-neutral { background-color: #ffffff; color: #64748b; }
+        
+        .loader { border-top-color: #3b82f6; animation: spinner 1.2s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 antialiased pb-12">
+<body class="text-slate-900 antialiased pb-20">
 
-    <div class="max-w-6xl mx-auto px-4 pt-8">
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 flex flex-wrap gap-4 items-end justify-between">
-            <div class="flex flex-wrap gap-4 items-end">
+    <div class="max-w-6xl mx-auto px-4 pt-6">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-wrap gap-4 items-end justify-between">
+            <div class="flex flex-wrap gap-3 items-end">
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Account Number</label>
-                    <input type="text" id="accInput" value="1051057600" class="bg-slate-50 border border-slate-200 p-2.5 rounded-lg w-48 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Account Number</label>
+                    <input type="text" id="accInput" value="1051057600" class="bg-slate-50 border border-slate-200 p-2 rounded-lg w-40 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Periode</label>
-                    <div class="flex gap-2">
-                        <select id="monthSel" class="bg-slate-50 border border-slate-200 p-2.5 rounded-lg outline-none cursor-pointer"></select>
-                        <select id="yearSel" class="bg-slate-50 border border-slate-200 p-2.5 rounded-lg outline-none cursor-pointer"></select>
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Periode</label>
+                    <div class="flex gap-1">
+                        <select id="monthSel" class="bg-slate-50 border border-slate-200 p-2 rounded-lg text-sm font-bold outline-none cursor-pointer"></select>
+                        <select id="yearSel" class="bg-slate-50 border border-slate-200 p-2 rounded-lg text-sm font-bold outline-none cursor-pointer"></select>
                     </div>
                 </div>
-                <button id="btnLoad" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-2.5 rounded-lg shadow-md shadow-blue-200 transition-all active:scale-95 flex items-center gap-2">
+                <button id="btnLoad" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded-lg shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 text-sm">
                     <span id="btnText">Tampilkan Data</span>
-                    <div id="btnLoader" class="hidden loader w-4 h-4 border-2 border-white rounded-full"></div>
+                    <div id="btnLoader" class="hidden loader w-3 h-3 border-2 border-white rounded-full"></div>
                 </button>
             </div>
-            <div class="text-right hidden md:block">
-                <p class="text-xs text-slate-400 font-medium">Last Sync WITA</p>
-                <p id="lastSync" class="font-bold text-slate-600">-</p>
+            <div class="text-right hidden sm:block">
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Last Sync WITA</p>
+                <p id="lastSync" class="font-bold text-slate-600 text-sm">-</p>
             </div>
         </div>
 
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs font-bold text-slate-400 uppercase">Initial Deposit</p>
-                <p id="statDeposit" class="text-2xl font-bold text-slate-800 mt-1">$0</p>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                <p class="text-[10px] font-bold text-slate-400 uppercase">Initial Deposit</p>
+                <p id="statDeposit" class="text-xl font-extrabold text-slate-800 mt-1">$0</p>
             </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs font-bold text-slate-400 uppercase">Current Equity</p>
-                <p id="statEquity" class="text-2xl font-bold text-slate-800 mt-1">$0</p>
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                <p class="text-[10px] font-bold text-slate-400 uppercase">Latest Equity</p>
+                <p id="statEquity" class="text-xl font-extrabold text-slate-800 mt-1">$0</p>
             </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs font-bold text-slate-400 uppercase">Total Growth</p>
-                <p id="statGrowth" class="text-2xl font-bold text-emerald-600 mt-1">0%</p>
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                <p class="text-[10px] font-bold text-slate-400 uppercase">Total Growth %</p>
+                <p id="statGrowth" class="text-xl font-extrabold text-emerald-500 mt-1">0%</p>
             </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs font-bold text-slate-400 uppercase">Status</p>
-                <p id="statStatus" class="text-2xl font-bold text-blue-600 mt-1">Standby</p>
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                <p class="text-[10px] font-bold text-slate-400 uppercase">Max Drawdown</p>
+                <p id="statDD" class="text-xl font-extrabold text-red-500 mt-1">0%</p>
             </div>
         </div>
 
-        <div class="grid lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+        <div class="grid lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                 <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl font-bold text-slate-800">Monthly Performance</h2>
-                    <div class="flex gap-2 items-center text-[10px] font-bold text-slate-400">
+                    <h2 id="calTitle" class="text-lg font-extrabold text-slate-800 uppercase tracking-tight">Monthly Performance</h2>
+                    <div class="flex gap-2 items-center text-[9px] font-bold text-slate-400">
                         <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-emerald-500"></i> Profit</span>
                         <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-red-400"></i> Loss</span>
                     </div>
                 </div>
                 <div class="grid grid-cols-7 gap-2 mb-2">
-                    <template id="dayNames">
-                        <div class="text-center text-[10px] font-black text-slate-300 uppercase py-2">Minggu</div>
-                    </template>
+                    <div class="text-center text-[10px] font-black text-slate-300 uppercase">Min</div>
+                    <div class="text-center text-[10px] font-black text-slate-300 uppercase">Sen</div>
+                    <div class="text-center text-[10px] font-black text-slate-300 uppercase">Sel</div>
+                    <div class="text-center text-[10px] font-black text-slate-300 uppercase">Rab</div>
+                    <div class="text-center text-[10px] font-black text-slate-300 uppercase">Kam</div>
+                    <div class="text-center text-[10px] font-black text-slate-300 uppercase">Jum</div>
+                    <div class="text-center text-[10px] font-black text-slate-300 uppercase">Sab</div>
                 </div>
                 <div id="calGrid" class="grid grid-cols-7 gap-2"></div>
             </div>
 
-            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                <h2 class="text-xl font-bold text-slate-800 mb-6">Equity Curve</h2>
-                <div class="h-64 relative">
-                    <canvas id="equityChart"></canvas>
+            <div class="space-y-6">
+                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                    <h2 class="text-lg font-extrabold text-slate-800 mb-4 uppercase tracking-tight">Equity Curve</h2>
+                    <div class="h-56 relative">
+                        <canvas id="equityChart"></canvas>
+                    </div>
                 </div>
-                <div class="mt-8 space-y-4">
-                    <div class="p-4 bg-slate-50 rounded-xl">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase">Broker Server</p>
-                        <p id="brokerName" class="font-bold text-slate-700">Waiting for data...</p>
+                
+                <div class="bg-slate-900 p-5 rounded-3xl text-white shadow-xl shadow-slate-200">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Broker Server</p>
+                    <p id="brokerName" class="text-lg font-bold mt-1 text-blue-400">Waiting...</p>
+                    <div class="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center">
+                        <div>
+                            <p class="text-[9px] font-bold text-slate-500 uppercase">System Status</p>
+                            <p id="statStatus" class="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> ONLINE
+                            </p>
+                        </div>
+                        <img src="https://img.icons8.com/ios-filled/50/3b82f6/server.png" class="w-6 opacity-50">
                     </div>
                 </div>
             </div>
@@ -102,22 +119,17 @@
     </div>
 
 <script>
-// --- CONFIGURATION ---
-// Silakan isi sesuai kredensial Firebase Anda
+// --- FIREBASE CONFIG ---
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    databaseURL: "https://kiroi-x-ecosystem-default-rtdb.asia-southeast1.firebasedatabase.app/",
-    projectId: "kiroi-x-ecosystem"
+    databaseURL: "https://kiroi-x-ecosystem-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const mNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-const dNames = ["Min","Sen","Sel","Rab","Kam","Jum","Sab"];
-
 let chartInstance = null;
 
-// --- INITIALIZATION ---
+// --- INIT DROPDOWNS ---
 const mSel = document.getElementById('monthSel');
 const ySel = document.getElementById('yearSel');
 const now = new Date();
@@ -125,35 +137,33 @@ const now = new Date();
 mNames.forEach((m, i) => mSel.innerHTML += `<option value="${i}" ${i==now.getMonth()?'selected':''}>${m}</option>`);
 for(let y=2024; y<=2026; y++) ySel.innerHTML += `<option value="${y}" ${y==now.getFullYear()?'selected':''}>${y}</option>`;
 
-// --- CORE LOGIC ---
+// --- CORE HANDLER ---
 document.getElementById('btnLoad').onclick = async () => {
     const acc = document.getElementById('accInput').value.trim();
     const month = parseInt(mSel.value);
     const year = parseInt(ySel.value);
     
-    if(!acc) return alert("Masukkan Nomor Akun!");
+    if(!acc) return alert("Nomor Akun Kosong!");
 
     // UI Loading
     document.getElementById('btnLoader').classList.remove('hidden');
-    document.getElementById('btnText').innerText = "Loading...";
+    document.getElementById('btnText').innerText = "Sync...";
 
     try {
-        // 1. Fetch Metadata
         const metaSnap = await db.ref(`account_data/${acc}/metadata`).once('value');
-        const meta = metaSnap.val();
-        
-        // 2. Fetch Snapshots
         const snap = await db.ref(`account_data/${acc}/snapshots`).once('value');
+        
+        const meta = metaSnap.val();
         const snapshotsRaw = snap.val();
 
-        if(!snapshotsRaw) throw new Error("Data snapshots tidak ditemukan.");
+        if(!snapshotsRaw) throw new Error("Data tidak ditemukan di database.");
 
-        // 3. Process Data
         const dailyMap = new Map();
         const chartLabels = [];
         const chartData = [];
-        
-        // Urutkan Keys (Timestamp) secara ascending
+        let maxEquity = 0;
+        let minEquityFromPeak = 0;
+
         const sortedKeys = Object.keys(snapshotsRaw).sort((a,b) => parseInt(a) - parseInt(b));
         
         sortedKeys.forEach(ts => {
@@ -161,33 +171,34 @@ document.getElementById('btnLoad').onclick = async () => {
             const d = new Date(parseInt(ts));
             const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
             
-            // Simpan snapshot terakhir untuk hari itu
             dailyMap.set(key, s);
-            
-            // Data untuk Chart
             chartLabels.push(d.toLocaleDateString('id-ID', {day:'2-digit', month:'short'}));
             chartData.push(s.equity);
+
+            // Drawdown Logic
+            if(s.equity > maxEquity) maxEquity = s.equity;
+            let dd = ((maxEquity - s.equity) / maxEquity) * 100;
+            if(dd > minEquityFromPeak) minEquityFromPeak = dd;
         });
 
-        // 4. Update UI Stats
-        const lastKey = sortedKeys[sortedKeys.length - 1];
-        const latest = snapshotsRaw[lastKey];
-        
-        document.getElementById('statDeposit').innerText = `$${meta?.initial_deposit?.toLocaleString() || 0}`;
-        document.getElementById('statEquity').innerText = `$${latest.equity?.toLocaleString()}`;
-        document.getElementById('statGrowth').innerText = `${(latest.total_growth_percent || 0).toFixed(2)}%`;
-        document.getElementById('brokerName').innerText = meta?.broker || "Unknown";
-        document.getElementById('statStatus').innerText = "Online";
-        
-        const syncDate = new Date(meta?.last_update || parseInt(lastKey));
-        document.getElementById('lastSync').innerText = syncDate.toLocaleTimeString('id-ID');
+        const latest = snapshotsRaw[sortedKeys[sortedKeys.length - 1]];
+        const initialDepo = meta?.initial_deposit || 5000;
 
-        // 5. Render Chart & Calendar
+        // UI Updates
+        document.getElementById('statDeposit').innerText = `$${initialDepo.toLocaleString()}`;
+        document.getElementById('statEquity').innerText = `$${latest.equity.toLocaleString()}`;
+        document.getElementById('statGrowth').innerText = `${((latest.equity - initialDepo)/initialDepo*100).toFixed(2)}%`;
+        document.getElementById('statDD').innerText = `${minEquityFromPeak.toFixed(2)}%`;
+        document.getElementById('brokerName').innerText = meta?.broker || "MetaTrader 5 Server";
+        
+        const syncDate = new Date(meta?.last_update || parseInt(sortedKeys[sortedKeys.length-1]));
+        document.getElementById('lastSync').innerText = syncDate.toLocaleTimeString('id-ID');
+        document.getElementById('calTitle').innerText = `${mNames[month]} ${year}`;
+
         updateChart(chartLabels, chartData);
         renderCalendar(year, month, dailyMap);
 
     } catch (e) {
-        console.error(e);
         alert(e.message);
     } finally {
         document.getElementById('btnLoader').classList.add('hidden');
@@ -199,39 +210,35 @@ function renderCalendar(year, month, dailyMap) {
     const grid = document.getElementById('calGrid');
     grid.innerHTML = '';
     
-    // Header Hari
-    dNames.forEach(d => {
-        grid.innerHTML += `<div class="text-center text-[10px] font-black text-slate-300 uppercase py-2">${d}</div>`;
-    });
-
-    const firstDay = new Date(year, month, 1);
-    const startOffset = firstDay.getDay(); // 0 = Minggu
+    const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    // Padding hari bulan sebelumnya
-    for(let i=0; i < startOffset; i++) {
-        grid.innerHTML += `<div class="calendar-day bg-transparent border border-transparent opacity-0"></div>`;
+    for(let i=0; i < firstDay; i++) {
+        grid.innerHTML += `<div class="calendar-day bg-transparent border-transparent opacity-0"></div>`;
     }
 
-    // Hari Aktif
     for (let d = 1; d <= daysInMonth; d++) {
         const dateKey = `${year}-${month}-${d}`;
-        const dayData = dailyMap.get(dateKey);
+        const data = dailyMap.get(dateKey);
         
         let colorClass = "bg-neutral";
-        const growth = dayData ? parseFloat(dayData.daily_growth_percent) : 0;
-        const profit = dayData ? parseFloat(dayData.daily_profit) : 0;
+        const growth = data ? parseFloat(data.daily_growth_percent || 0) : 0;
+        const profit = data ? parseFloat(data.daily_profit || 0) : 0;
+        const lots = data ? parseFloat(data.daily_lots || 0) : 0; //
 
-        if (growth > 0.01) colorClass = growth > 2 ? "bg-win-heavy" : "bg-win-light";
-        else if (growth < -0.01) colorClass = growth < -2 ? "bg-loss-heavy" : "bg-loss-light";
+        if (growth > 0.01) colorClass = growth > 2 ? "bg-win-heavy text-white" : "bg-win-light text-emerald-900";
+        else if (growth < -0.01) colorClass = growth < -2 ? "bg-loss-heavy text-white" : "bg-loss-light text-red-900";
 
         const div = document.createElement('div');
-        div.className = `calendar-day p-2.5 rounded-xl border border-slate-100 flex flex-col justify-between ${colorClass}`;
+        div.className = `calendar-day p-2 rounded-xl flex flex-col justify-between ${colorClass}`;
         div.innerHTML = `
-            <span class="text-[10px] font-black opacity-40">${d}</span>
-            <div class="text-center">
-                <span class="text-sm font-bold block">${dayData ? growth.toFixed(2)+'%' : '-'}</span>
-                <span class="text-[9px] font-medium opacity-80">${dayData && profit != 0 ? '$'+profit.toFixed(0) : ''}</span>
+            <span class="text-[10px] font-black opacity-30">${d}</span>
+            <div class="text-center py-1">
+                <span class="text-sm font-extrabold block leading-none">${data ? growth.toFixed(2)+'%' : '-'}</span>
+                <div class="mt-1.5 flex flex-col gap-0.5">
+                    <span class="text-[9px] font-bold opacity-80">${data && profit != 0 ? '$' + profit.toFixed(0) : ''}</span>
+                    <span class="text-[8px] font-black tracking-tighter opacity-60 uppercase">${data && lots > 0 ? lots.toFixed(2) + ' Lot' : ''}</span>
+                </div>
             </div>
             <div></div>
         `;
@@ -248,17 +255,16 @@ function updateChart(labels, data) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'Equity',
                 data: data,
                 borderColor: '#3b82f6',
                 borderWidth: 3,
                 pointRadius: 0,
                 fill: true,
                 backgroundColor: (context) => {
-                    const gradient = context.chart.ctx.createLinearGradient(0, 0, 0, 400);
-                    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
-                    gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-                    return gradient;
+                    const g = context.chart.ctx.createLinearGradient(0, 0, 0, 300);
+                    g.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
+                    g.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                    return g;
                 },
                 tension: 0.4
             }]
@@ -270,8 +276,8 @@ function updateChart(labels, data) {
             scales: {
                 x: { display: false },
                 y: {
-                    grid: { color: '#f1f5f9' },
-                    ticks: { font: { size: 10 } }
+                    grid: { color: '#f1f5f9', drawBorder: false },
+                    ticks: { font: { size: 9, weight: 'bold' }, color: '#94a3b8' }
                 }
             }
         }
