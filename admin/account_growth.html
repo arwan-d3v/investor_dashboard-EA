@@ -11,29 +11,28 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <style>
     body { background-color: #F8FAFC; }
-    .calendar-day { transition: all 0.2s; cursor: pointer; }
-    .calendar-day:hover { transform: scale(1.05); box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 10; position: relative; }
+    .calendar-day { transition: all 0.2s; cursor: pointer; min-height: 60px; }
+    .calendar-day:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; position: relative; }
     .tooltip-info {
-      position: absolute; background: #1e293b; color: #f1f5f9; padding: 6px 10px;
-      border-radius: 8px; font-size: 12px; z-index: 20; white-space: nowrap;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2); pointer-events: none;
+      position: absolute; background: #1e293b; color: #f1f5f9; padding: 8px 12px;
+      border-radius: 8px; font-size: 12px; z-index: 50; white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none;
     }
-    /* Soft colors for calendar */
-    .bg-soft-green-dark { background-color: #86efac; }  /* >2% */
-    .bg-soft-green { background-color: #bbf7d0; }       /* 1-2% */
-    .bg-soft-green-light { background-color: #dcfce7; } /* 0.5-1% */
-    .bg-soft-yellow { background-color: #fef9c3; }      /* 0-0.5% */
-    .bg-soft-orange { background-color: #fed7aa; }      /* -0.5-0% */
-    .bg-soft-red-light { background-color: #fecaca; }   /* -1 to -0.5% */
-    .bg-soft-red { background-color: #fca5a5; }         /* <-1% */
-    .bg-soft-gray { background-color: #f1f5f9; }        /* no data */
+    .bg-soft-green-dark { background-color: #86efac; }
+    .bg-soft-green { background-color: #bbf7d0; }
+    .bg-soft-green-light { background-color: #dcfce7; }
+    .bg-soft-yellow { background-color: #fef9c3; }
+    .bg-soft-orange { background-color: #fed7aa; }
+    .bg-soft-red-light { background-color: #fecaca; }
+    .bg-soft-red { background-color: #fca5a5; }
+    .bg-soft-gray { background-color: #f1f5f9; }
   </style>
 </head>
 <body class="p-4">
-<div class="max-w-full mx-auto">
+<div class="max-w-6xl mx-auto">
   <div class="flex flex-wrap justify-between items-center mb-6">
     <h1 class="text-2xl font-bold text-blue-600">Account Growth Monitor</h1>
-    <a href="index.html" class="bg-gray-500 text-white px-4 py-2 rounded-lg">← Admin</a>
+    <a href="index.html" class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm">← Kembali</a>
   </div>
 
   <div class="bg-white rounded-xl shadow-md p-4 mb-6">
@@ -41,53 +40,51 @@
       <input type="text" id="accountNumber" placeholder="Nomor Akun" class="border rounded p-2 flex-1" autocomplete="off">
       <select id="monthPicker" class="border rounded p-2"></select>
       <select id="yearPicker" class="border rounded p-2"></select>
-      <button id="loadBtn" class="bg-blue-600 text-white px-6 py-2 rounded">Tampilkan</button>
+      <button id="loadBtn" class="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700">Tampilkan</button>
     </div>
   </div>
 
   <div id="summaryCards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 hidden">
-    <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Initial Deposit</div><div class="text-2xl font-bold" id="initDeposit">-</div></div>
-    <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Latest Equity</div><div class="text-2xl font-bold" id="latestEquity">-</div></div>
-    <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Total Growth %</div><div class="text-2xl font-bold" id="totalGrowth">-</div></div>
-    <div class="bg-white p-4 rounded-xl shadow"><div class="text-gray-500">Max Drawdown %</div><div class="text-2xl font-bold" id="maxDrawdown">-</div></div>
+    <div class="bg-white p-4 rounded-xl shadow"><div class="text-xs text-gray-500 uppercase">Initial Deposit</div><div class="text-xl font-bold text-gray-800" id="initDeposit">-</div></div>
+    <div class="bg-white p-4 rounded-xl shadow"><div class="text-xs text-gray-500 uppercase">Latest Equity</div><div class="text-xl font-bold text-gray-800" id="latestEquity">-</div></div>
+    <div class="bg-white p-4 rounded-xl shadow"><div class="text-xs text-gray-500 uppercase">Total Growth %</div><div class="text-xl font-bold" id="totalGrowth">-</div></div>
+    <div class="bg-white p-4 rounded-xl shadow"><div class="text-xs text-gray-500 uppercase">Max Drawdown</div><div class="text-xl font-bold text-red-500" id="maxDrawdown">-</div></div>
   </div>
 
-  <!-- Grafik equity all time -->
   <div class="bg-white rounded-xl shadow p-4 mb-6 hidden" id="chartContainer">
-    <h3 class="font-semibold text-gray-700 mb-2">Equity Growth (All Time) – periode 07:00 WITA → 05:59 WITA</h3>
-    <div class="h-[250px] md:h-[350px]">
+    <h3 class="font-semibold text-gray-700 mb-4 border-b pb-2">Equity Growth (All Time)</h3>
+    <div class="h-[250px] md:h-[380px]">
       <canvas id="balanceChart"></canvas>
     </div>
-    <div class="text-xs text-gray-400 mt-2 text-center" id="chartRangeInfo"></div>
+    <div class="text-[10px] text-gray-400 mt-4 text-center" id="chartRangeInfo"></div>
   </div>
 
-  <!-- Calendar -->
   <div class="bg-white rounded-xl shadow p-4 mb-6 hidden" id="calendarContainer">
-    <h3 class="font-bold text-lg mb-3 text-center" id="calendarTitle"></h3>
-    <div class="grid grid-cols-7 gap-1 text-center text-sm font-medium bg-gray-100 p-2 rounded-t">
-      <div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div><div>Min</div>
+    <h3 class="font-bold text-lg mb-4 text-center text-gray-700" id="calendarTitle"></h3>
+    <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold bg-gray-100 p-2 rounded-t text-gray-600">
+      <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
     </div>
     <div id="calendarGrid" class="grid grid-cols-7 gap-1 mt-1"></div>
-    <div class="text-xs text-gray-500 mt-3 text-center flex justify-center gap-3 flex-wrap">
-      <span><span class="inline-block w-3 h-3 bg-soft-green-dark rounded"></span> >2%</span>
-      <span><span class="inline-block w-3 h-3 bg-soft-green rounded"></span> 1-2%</span>
-      <span><span class="inline-block w-3 h-3 bg-soft-green-light rounded"></span> 0.5-1%</span>
-      <span><span class="inline-block w-3 h-3 bg-soft-yellow rounded"></span> 0-0.5%</span>
-      <span><span class="inline-block w-3 h-3 bg-soft-orange rounded"></span> -0.5-0%</span>
-      <span><span class="inline-block w-3 h-3 bg-soft-red-light rounded"></span> -1 to -0.5%</span>
-      <span><span class="inline-block w-3 h-3 bg-soft-red rounded"></span> <-1%</span>
-      <span><span class="inline-block w-3 h-3 bg-soft-gray rounded"></span> No data</span>
+    
+    <div class="text-[10px] text-gray-500 mt-6 flex justify-center gap-3 flex-wrap border-t pt-4">
+      <span><span class="inline-block w-3 h-3 bg-soft-green-dark rounded-full align-middle mr-1"></span> >2%</span>
+      <span><span class="inline-block w-3 h-3 bg-soft-green rounded-full align-middle mr-1"></span> 1-2%</span>
+      <span><span class="inline-block w-3 h-3 bg-soft-green-light rounded-full align-middle mr-1"></span> 0.5-1%</span>
+      <span><span class="inline-block w-3 h-3 bg-soft-yellow rounded-full align-middle mr-1"></span> 0-0.5%</span>
+      <span><span class="inline-block w-3 h-3 bg-soft-orange rounded-full align-middle mr-1"></span> -0.5-0%</span>
+      <span><span class="inline-block w-3 h-3 bg-soft-red-light rounded-full align-middle mr-1"></span> -1 to -0.5%</span>
+      <span><span class="inline-block w-3 h-3 bg-soft-red rounded-full align-middle mr-1"></span> <-1%</span>
+      <span><span class="inline-block w-3 h-3 bg-soft-gray rounded-full align-middle mr-1"></span> No data</span>
     </div>
   </div>
 
-  <div id="loadingMsg" class="text-center text-gray-500">Masukkan nomor akun</div>
+  <div id="loadingMsg" class="text-center text-gray-400 mt-10 italic">Masukkan nomor akun untuk memantau performa</div>
 </div>
 
 <script src="../assets/js/firebase-config.js"></script>
 <script>
 requireAdmin().then(() => {
   const db = firebase.database();
-  let currentAccount = '';
   let balanceChart = null;
 
   const monthPicker = document.getElementById('monthPicker');
@@ -101,7 +98,6 @@ requireAdmin().then(() => {
   document.getElementById('loadBtn').addEventListener('click', async () => {
     const acc = document.getElementById('accountNumber').value.trim();
     if(!acc) return alert('Masukkan nomor akun');
-    currentAccount = acc;
     await loadData(acc, parseInt(yearPicker.value), parseInt(monthPicker.value));
   });
 
@@ -117,158 +113,137 @@ requireAdmin().then(() => {
   }
 
   async function loadData(account, year, month) {
+    document.getElementById('loadingMsg').innerHTML = 'Memuat data...';
     const metaSnap = await db.ref(`account_data/${account}/metadata`).once('value');
     const meta = metaSnap.val();
+    
     if(!meta) {
-      document.getElementById('loadingMsg').innerHTML = 'Akun tidak ditemukan. Pastikan EA monitor sudah berjalan.';
-      document.getElementById('summaryCards').classList.add('hidden');
-      document.getElementById('chartContainer').classList.add('hidden');
-      document.getElementById('calendarContainer').classList.add('hidden');
+      document.getElementById('loadingMsg').innerHTML = 'Akun tidak ditemukan atau belum mengirim data.';
+      ['summaryCards', 'chartContainer', 'calendarContainer'].forEach(id => document.getElementById(id).classList.add('hidden'));
       return;
     }
 
-    const snapshotsRef = db.ref(`account_data/${account}/snapshots`);
-    const snap = await snapshotsRef.once('value');
+    const snap = await db.ref(`account_data/${account}/snapshots`).once('value');
     const snapshots = [];
-    snap.forEach(child => {
-      const ts = parseInt(child.key);
-      const val = child.val();
-      snapshots.push({ ts, ...val });
-    });
+    snap.forEach(child => { snapshots.push({ ts: parseInt(child.key), ...child.val() }); });
     snapshots.sort((a,b) => a.ts - b.ts);
+
     if(snapshots.length === 0) {
-      document.getElementById('loadingMsg').innerHTML = 'Belum ada data snapshot. Tunggu EA monitor.';
+      document.getElementById('loadingMsg').innerHTML = 'Data snapshot kosong.';
       return;
     }
 
-    // Ringkasan
+    // UPDATE UI CARDS
     const latest = snapshots[snapshots.length-1];
-    const initDeposit = meta.initial_deposit || latest.balance;
-    const totalGrowth = ((latest.equity - initDeposit) / initDeposit * 100).toFixed(2);
+    const initDepo = meta.initial_deposit || snapshots[0].balance;
+    const totalGr = ((latest.equity - initDepo) / initDepo * 100).toFixed(2);
     let maxDraw = 0;
     snapshots.forEach(s => { if(s.drawdown > maxDraw) maxDraw = s.drawdown; });
 
-    document.getElementById('initDeposit').innerText = `$${initDeposit.toFixed(2)}`;
-    document.getElementById('latestEquity').innerText = `$${latest.equity.toFixed(2)}`;
-    document.getElementById('totalGrowth').innerHTML = `<span class="${totalGrowth>=0?'text-green-600':'text-red-600'}">${totalGrowth}%</span>`;
-    document.getElementById('maxDrawdown').innerHTML = `<span class="text-red-600">${maxDraw.toFixed(2)}%</span>`;
+    document.getElementById('initDeposit').innerText = `$${initDepo.toLocaleString()}`;
+    document.getElementById('latestEquity').innerText = `$${latest.equity.toLocaleString()}`;
+    document.getElementById('totalGrowth').innerHTML = `<span class="${totalGr>=0?'text-green-600':'text-red-600'}">${totalGr}%</span>`;
+    document.getElementById('maxDrawdown').innerText = `${maxDraw.toFixed(2)}%`;
     document.getElementById('summaryCards').classList.remove('hidden');
 
     // --- GRAFIK PROPORSIONAL ---
     const equities = snapshots.map(s => s.equity);
-    const minEq = Math.min(...equities);
-    const maxEq = Math.max(...equities);
-    const margin = (maxEq - minEq) * 0.2; // 20% padding
+    const minE = Math.min(...equities);
+    const maxE = Math.max(...equities);
+    const margin = (maxE - minE) * 0.2; 
 
     if(balanceChart) balanceChart.destroy();
-    const ctx = document.getElementById('balanceChart').getContext('2d');
-    balanceChart = new Chart(ctx, {
+    balanceChart = new Chart(document.getElementById('balanceChart'), {
       type: 'line',
       data: {
-        labels: snapshots.map(s => {
-          // Label untuk sumbu x (tidak terlalu penting, biar rapi)
-          const witaDate = new Date(s.ts + 8*3600*1000);
-          return witaDate.toLocaleDateString('id-ID', {day:'numeric', month:'short'});
-        }),
+        labels: snapshots.map(s => new Date(s.ts + 8*3600*1000).toLocaleDateString('id-ID', {day:'numeric', month:'short'})),
         datasets: [{
-          label: 'Equity',
           data: equities,
           borderColor: '#3B82F6',
-          borderWidth: 2,
+          borderWidth: 1.5,
           pointRadius: 0,
           fill: true,
-          backgroundColor: (context) => {
-            const chart = context.chart;
-            const {ctx, chartArea} = chart;
-            if (!chartArea) return null;
-            const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-            gradient.addColorStop(0, 'rgba(59, 130, 246, 0)');
-            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.1)');
+          tension: 0.3,
+          backgroundColor: (ctx) => {
+            const canvas = ctx.chart.ctx;
+            const gradient = canvas.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.15)');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
             return gradient;
-          },
-          tension: 0.3
+          }
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
         scales: {
-          y: {
-            suggestedMin: minEq - margin,
-            suggestedMax: maxEq + margin,
-            ticks: { callback: (value) => '$' + value.toLocaleString() }
-          },
-          x: { grid: { display: false }, ticks: { maxRotation: 45, autoSkip: true } }
-        },
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: (ctx) => `Equity: $${ctx.raw.toFixed(2)}` } }
+          y: { suggestedMin: minE - margin, suggestedMax: maxE + margin, ticks: { font: { size: 10 } } },
+          x: { grid: { display: false }, ticks: { font: { size: 10 }, maxTicksLimit: 10 } }
         }
       }
     });
     document.getElementById('chartContainer').classList.remove('hidden');
-    document.getElementById('chartRangeInfo').innerText = `${snapshots.length} titik data | ${new Date(snapshots[0].ts + 8*3600*1000).toLocaleDateString('id-ID')} sd ${new Date(snapshots[snapshots.length-1].ts + 8*3600*1000).toLocaleDateString('id-ID')}`;
 
-    // --- KALENDER DENGAN SHIFT -7 JAM (periode 07:00-05:59) ---
+    // --- LOGIKA KALENDER (SHIFT -7 JAM) ---
     const dailyMap = new Map();
     snapshots.forEach(s => {
-      // Shift mundur 7 jam, sehingga jam 07:00 WITA menjadi 00:00 di tanggal yang sama.
-      const reportingDate = new Date(s.ts + (8 * 3600 * 1000) - (7 * 3600 * 1000));
-      const dateKey = reportingDate.toISOString().slice(0,10);
-      if(!dailyMap.has(dateKey) || dailyMap.get(dateKey).ts < s.ts) {
-        dailyMap.set(dateKey, {
-          growth: s.daily_growth_percent,
-          ts: s.ts,
-          equity: s.equity,
-          daily_profit: s.daily_profit
-        });
+      // 07:00 WITA -> dihitung 00:00 (Hari yang sama)
+      // 05:00 WITA (Besoknya) -> dihitung 22:00 (Hari sebelumnya)
+      const reportDate = new Date(s.ts + (8 * 3600 * 1000) - (7 * 3600 * 1000));
+      const key = reportDate.toISOString().slice(0,10);
+      if(!dailyMap.has(key) || dailyMap.get(key).ts < s.ts) {
+        dailyMap.set(key, { growth: s.daily_growth_percent, equity: s.equity, profit: s.daily_profit, ts: s.ts });
       }
     });
 
-    // Generate grid kalender
-    const firstDayOfMonth = new Date(year, month, 1);
-    let start = new Date(firstDayOfMonth);
-    if(start.getDay() === 0) start.setDate(start.getDate() - 6);
-    else if(start.getDay() !== 1) start.setDate(start.getDate() - (start.getDay() - 1));
-    const endDate = new Date(year, month+1, 0);
-    const calendarDays = [];
-    let current = new Date(start);
-    while(current <= endDate || calendarDays.length % 7 !== 0) {
-      calendarDays.push(new Date(current));
-      current.setDate(current.getDate() + 1);
+    // --- GRID: MINGGU SEBAGAI HARI PERTAMA ---
+    const firstDay = new Date(year, month, 1);
+    let startCal = new Date(firstDay);
+    // Mundur ke hari Minggu terdekat
+    startCal.setDate(startCal.getDate() - startCal.getDay());
+    
+    const lastDay = new Date(year, month + 1, 0);
+    const gridDays = [];
+    let curr = new Date(startCal);
+    while(curr <= lastDay || gridDays.length % 7 !== 0) {
+      gridDays.push(new Date(curr));
+      curr.setDate(curr.getDate() + 1);
     }
 
     const grid = document.getElementById('calendarGrid');
     grid.innerHTML = '';
-    calendarDays.forEach(day => {
-      const dateKey = day.toISOString().slice(0,10);
-      const snapDay = dailyMap.get(dateKey);
-      let growth = snapDay ? snapDay.growth : null;
-      const bgClass = getGrowthColorClass(growth);
-      const isCurrentMonth = day.getMonth() === month;
-      const opacity = isCurrentMonth ? '' : 'opacity-50';
+    gridDays.forEach(day => {
+      const k = day.toISOString().slice(0,10);
+      const data = dailyMap.get(k);
+      const growth = data ? data.growth : null;
+      const isMonth = day.getMonth() === month;
+      
       const div = document.createElement('div');
-      div.className = `calendar-day ${bgClass} ${opacity} rounded-lg p-2 text-center text-sm transition relative`;
-      div.innerHTML = `<div class="font-bold ${isCurrentMonth ? 'text-gray-800' : 'text-gray-400'}">${day.getDate()}</div><div class="text-xs text-gray-600">${growth !== null ? growth.toFixed(2)+'%' : '-'}</div>`;
-      if(snapDay) {
+      div.className = `calendar-day ${getGrowthColorClass(growth)} ${isMonth ? '' : 'opacity-30'} rounded-lg p-2 text-center transition relative border border-white/50`;
+      div.innerHTML = `<div class="text-[10px] font-bold ${isMonth ? 'text-gray-700' : 'text-gray-400'}">${day.getDate()}</div>
+                       <div class="text-[11px] font-semibold text-gray-600 mt-1">${growth !== null ? growth.toFixed(2)+'%' : '-'}</div>`;
+      
+      if(data) {
         div.addEventListener('mouseenter', (e) => {
-          const tooltip = document.createElement('div');
-          tooltip.className = 'tooltip-info';
-          tooltip.innerHTML = `Daily Growth: ${growth.toFixed(2)}%<br>Equity: $${snapDay.equity?.toFixed(2)}<br>Daily Profit: $${snapDay.daily_profit?.toFixed(2)}`;
-          document.body.appendChild(tooltip);
-          const rect = div.getBoundingClientRect();
-          tooltip.style.left = rect.left + window.scrollX + 'px';
-          tooltip.style.top = rect.top + window.scrollY - 35 + 'px';
-          div._tooltip = tooltip;
+          const tt = document.createElement('div');
+          tt.className = 'tooltip-info';
+          tt.innerHTML = `<b>${day.toLocaleDateString('id-ID')}</b><br>Profit: $${data.profit.toFixed(2)}<br>Growth: ${growth.toFixed(2)}%<br>Equity: $${data.equity.toLocaleString()}`;
+          document.body.appendChild(tt);
+          const r = div.getBoundingClientRect();
+          tt.style.left = r.left + window.scrollX + 'px';
+          tt.style.top = r.top + window.scrollY - 60 + 'px';
+          div._tt = tt;
         });
-        div.addEventListener('mouseleave', () => { if(div._tooltip) div._tooltip.remove(); });
+        div.addEventListener('mouseleave', () => { if(div._tt) div._tt.remove(); });
       }
       grid.appendChild(div);
     });
 
-    document.getElementById('calendarTitle').innerHTML = `${new Date(year, month).toLocaleString('id-ID', {month:'long', year:'numeric'})} (periode 07:00 WITA → 05:59 WITA)`;
+    document.getElementById('calendarTitle').innerText = `${new Date(year, month).toLocaleString('id-ID', {month:'long', year:'numeric'})}`;
     document.getElementById('calendarContainer').classList.remove('hidden');
     document.getElementById('loadingMsg').classList.add('hidden');
+    document.getElementById('chartRangeInfo').innerText = `${snapshots.length} Data Points | Period: 07:00 WITA - 05:59 WITA`;
   }
 });
 </script>
